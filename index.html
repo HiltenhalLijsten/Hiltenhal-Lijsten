@@ -1685,19 +1685,30 @@ window.renderRoosterView = function renderRoosterView() {
     <button onclick="window.roosterViewWeekOffset++;window.renderRoosterView()" style="font-size:13px;padding:5px 12px;">Volgende week →</button>
   </div>`;
   
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">';
   days.forEach(day => {
-    const shifts = roosterData[day.key] || [];
+    const dagData = roosterData[day.key] || { shifts: [], opmerking: '' };
+    const shifts = dagData.shifts || dagData; // backwards compat
+    const opmerking = dagData.opmerking || '';
     const isToday = day.key === today;
-    html += `<div style="background:${isToday ? 'var(--blauw-licht)' : 'var(--wit)'};border:0.5px solid ${isToday ? '#BFDBFE' : 'var(--grijs-mid)'};border-radius:10px;padding:10px;">
-      <p style="font-size:12px;font-weight:500;margin:0 0 8px;color:${isToday ? '#1E40AF' : 'var(--donker)'};">${day.label}${isToday ? ' ✦' : ''}</p>`;
-    if (shifts.length === 0) {
-      html += `<p style="font-size:11px;color:var(--grijs-tekst);">—</p>`;
+    
+    html += `<div style="background:${isToday ? 'var(--blauw-licht)' : 'var(--wit)'};border:0.5px solid ${isToday ? '#BFDBFE' : 'var(--grijs-mid)'};border-radius:10px;padding:10px;position:relative;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+        <p style="font-size:12px;font-weight:500;margin:0;color:${isToday ? '#1E40AF' : 'var(--donker)'};">${day.label}${isToday ? ' ✦' : ''}</p>
+        ${opmerking ? `<span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:8px;max-width:80px;text-align:center;line-height:1.3;">${opmerking}</span>` : ''}
+      </div>`;
+    
+    if (!Array.isArray(shifts) || shifts.length === 0) {
+      html += `<p style="font-size:11px;color:var(--grijs-tekst);">Geen diensten</p>`;
     } else {
-      shifts.forEach(s => {
-        html += `<div style="background:var(--grijs);border-radius:6px;padding:5px 8px;margin-bottom:4px;">
-          <p style="font-size:12px;font-weight:500;margin:0;color:var(--donker);">${s.naam}</p>
-          <p style="font-size:11px;color:var(--grijs-tekst);margin:0;">${s.van} – ${s.tot}</p>
+      shifts.forEach((s, idx) => {
+        const dienstKey = day.key + '_' + idx;
+        html += `<div style="background:${s.naam ? 'var(--groen-licht)' : 'var(--grijs)'};border:0.5px solid ${s.naam ? '#A7F3D0' : 'var(--grijs-mid)'};border-radius:6px;padding:6px 8px;margin-bottom:4px;">
+          <p style="font-size:11px;color:var(--grijs-tekst);margin:0 0 3px;">${s.van} – ${s.tot}</p>
+          ${s.naam 
+            ? `<p style="font-size:12px;font-weight:500;margin:0;color:var(--groen);">${s.naam}</p>`
+            : `<input type="text" placeholder="Jouw naam..." style="font-size:12px;padding:3px 6px;width:100%;background:transparent;" onchange="claimShift('${day.key}',${idx},this.value)">`
+          }
         </div>`;
       });
     }
@@ -1719,18 +1730,26 @@ window.renderRoosterEditor = function renderRoosterEditor() {
 
   html += '<div style="display:flex;flex-direction:column;gap:12px;">';
   days.forEach(day => {
-    const shifts = roosterData[day.key] || [];
+    const dagData = roosterData[day.key] || { shifts: [], opmerking: '' };
+    const shifts = Array.isArray(dagData) ? dagData : (dagData.shifts || []);
+    const opmerking = dagData.opmerking || '';
+    
     html += `<div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:12px;">
       <p style="font-size:13px;font-weight:500;margin:0 0 10px;color:var(--donker);">${day.label}</p>`;
+    
     shifts.forEach((s, idx) => {
       html += `<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap;">
-        <input type="text" value="${s.naam}" placeholder="Naam" style="flex:1;min-width:80px;font-size:13px;padding:6px 8px;" onchange="updateShift('${day.key}',${idx},'naam',this.value)">
-        <input type="time" value="${s.van}" style="font-size:13px;padding:6px 8px;width:90px;" onchange="updateShift('${day.key}',${idx},'van',this.value)">
-        <input type="time" value="${s.tot}" style="font-size:13px;padding:6px 8px;width:90px;" onchange="updateShift('${day.key}',${idx},'tot',this.value)">
+        <input type="time" value="${s.van}" style="font-size:13px;padding:6px 8px;width:95px;" onchange="updateShift('${day.key}',${idx},'van',this.value)">
+        <span style="font-size:13px;color:var(--grijs-tekst);">–</span>
+        <input type="time" value="${s.tot}" style="font-size:13px;padding:6px 8px;width:95px;" onchange="updateShift('${day.key}',${idx},'tot',this.value)">
         <button onclick="removeShift('${day.key}',${idx})" style="font-size:13px;padding:6px 8px;color:var(--rood);">✕</button>
       </div>`;
     });
-    html += `<button onclick="addShift('${day.key}')" style="font-size:12px;padding:5px 10px;width:100%;margin-top:4px;">+ Medewerker toevoegen</button>
+    
+    html += `<button onclick="addShift('${day.key}')" style="font-size:12px;padding:5px 10px;width:100%;margin-top:4px;">+ Dienst toevoegen</button>
+      <div style="margin-top:10px;">
+        <input type="text" value="${opmerking}" placeholder="Opmerking (bijv. Padeltoernooi)" style="font-size:12px;padding:6px 8px;width:100%;" onchange="updateOpmerking('${day.key}',this.value)">
+      </div>
     </div>`;
   });
   html += '</div>';
@@ -1738,24 +1757,45 @@ window.renderRoosterEditor = function renderRoosterEditor() {
 }
 
 window.addShift = function addShift(dayKey) {
-  if (!roosterData[dayKey]) roosterData[dayKey] = [];
-  roosterData[dayKey].push({ naam: '', van: '09:00', tot: '17:00' });
-  renderRoosterEditor();
+  if (!roosterData[dayKey] || Array.isArray(roosterData[dayKey])) {
+    roosterData[dayKey] = { shifts: Array.isArray(roosterData[dayKey]) ? roosterData[dayKey] : [], opmerking: '' };
+  }
+  roosterData[dayKey].shifts.push({ van: '09:00', tot: '17:00', naam: '' });
+  window.renderRoosterEditor();
 }
 
 window.removeShift = function removeShift(dayKey, idx) {
-  roosterData[dayKey].splice(idx, 1);
-  renderRoosterEditor();
+  if (roosterData[dayKey] && roosterData[dayKey].shifts) {
+    roosterData[dayKey].shifts.splice(idx, 1);
+  }
+  window.renderRoosterEditor();
 }
 
 window.updateShift = function updateShift(dayKey, idx, field, value) {
-  if (!roosterData[dayKey]) roosterData[dayKey] = [];
-  roosterData[dayKey][idx][field] = value;
+  if (!roosterData[dayKey] || Array.isArray(roosterData[dayKey])) return;
+  roosterData[dayKey].shifts[idx][field] = value;
+}
+
+window.updateOpmerking = function updateOpmerking(dayKey, value) {
+  if (!roosterData[dayKey] || Array.isArray(roosterData[dayKey])) {
+    roosterData[dayKey] = { shifts: [], opmerking: value };
+  } else {
+    roosterData[dayKey].opmerking = value;
+  }
+}
+
+window.claimShift = async function claimShift(dayKey, idx, naam) {
+  if (!naam.trim()) return;
+  if (!roosterData[dayKey] || Array.isArray(roosterData[dayKey])) return;
+  roosterData[dayKey].shifts[idx].naam = naam.trim();
+  await fbSet('rooster_data', roosterData);
+  window.renderRoosterView();
+  showToast('Naam opgeslagen! ✓');
 }
 
 window.saveRooster = async function saveRooster() {
   await fbSet('rooster_data', roosterData);
-  renderRoosterView();
+  window.renderRoosterView();
   showToast('Rooster opgeslagen! ✓');
 }
 
