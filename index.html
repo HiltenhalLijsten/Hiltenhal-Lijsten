@@ -417,11 +417,11 @@
 
 <div class="tabs">
   <div class="tab active" onclick="showTab('dagelijks', this)">📋 Dagelijks</div>
-  <div class="tab" onclick="showTab('remco', this)">📅 Remco</div>
+  <div class="tab" onclick="showTab('rooster', this)">📅 Rooster</div>
   <div class="tab" onclick="showTab('sportvelden', this)">🏟️ Sportvelden</div>
   <div class="tab" onclick="showTab('onderhoud', this)">🔧 Onderhoud</div>
-  <div class="tab" onclick="showTab('beheer', this)">⚙️ Beheer</div>
   <div class="tab" onclick="showTab('historie', this)">🕐 Historie</div>
+  <div class="tab" onclick="openRemco(this)">🔒 Remco</div>
 </div>
 
 <!-- TAB 1: DAGELIJKS -->
@@ -449,26 +449,68 @@
   </div>
 </div>
 
-<!-- TAB 2: REMCO -->
-<div class="content" id="tab-remco">
-  <div class="remco-intro">
-    <strong>📅 Weekplanning – Remco</strong>
-    Vink aan welke taken deze week gedaan moeten worden en kies op welke dag. Het personeel ziet deze taken op de juiste dag.
+<!-- TAB 2: ROOSTER (readonly) -->
+<div class="content" id="tab-rooster">
+  <div class="remco-intro" style="background:var(--blauw-licht);border-color:#BFDBFE;color:#1E40AF;">
+    <strong>📅 Weekrooster</strong>
+    Bekijk hier het rooster. Alleen Remco kan het aanpassen.
   </div>
-  <div id="remcoTasks"></div>
-  <div class="submit-box">
-    <h3>📋 Gegenereerde weeklijst</h3>
-    <div id="generatedWeekList"><p style="color:var(--grijs-tekst);font-size:13px;">Selecteer taken hierboven om ze in te plannen.</p></div>
-    <button class="btn-primary" style="margin-top:12px;" onclick="saveWeekplan()">Weekplan opslaan ✓</button>
+  <div id="roosterView"></div>
+</div>
+
+<!-- TAB REMCO (pincode protected) -->
+<div class="content" id="tab-remco">
+  <div id="pinScreen" style="max-width:300px;margin:40px auto;text-align:center;">
+    <div style="font-size:40px;margin-bottom:16px;">🔒</div>
+    <p style="font-size:16px;font-weight:500;margin-bottom:8px;color:var(--donker);">Remco toegang</p>
+    <p style="font-size:13px;color:var(--grijs-tekst);margin-bottom:20px;">Voer de pincode in</p>
+    <input type="password" id="pincodeInput" maxlength="4" placeholder="••••" style="text-align:center;font-size:24px;letter-spacing:8px;width:100%;padding:12px;margin-bottom:12px;">
+    <button class="btn-primary" onclick="checkPin()">Inloggen</button>
+    <p id="pinError" style="color:var(--rood);font-size:13px;margin-top:8px;display:none;">Verkeerde pincode!</p>
+  </div>
+  <div id="remcoContent" style="display:none;">
+    <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--grijs-mid);padding-bottom:12px;flex-wrap:wrap;">
+      <button id="rbtn-weekplan" onclick="showRemcoSection('weekplan')" style="font-size:13px;padding:6px 14px;background:var(--donker);color:var(--wit);border:none;border-radius:6px;">📅 Weekplanning</button>
+      <button id="rbtn-roosterMaken" onclick="showRemcoSection('roosterMaken')" style="font-size:13px;padding:6px 14px;border-radius:6px;">🗓️ Rooster maken</button>
+      <button id="rbtn-beheer" onclick="showRemcoSection('beheer')" style="font-size:13px;padding:6px 14px;border-radius:6px;">⚙️ Beheer</button>
+      <button onclick="logoutRemco()" style="font-size:13px;padding:6px 14px;border-radius:6px;margin-left:auto;color:var(--rood);">Uitloggen</button>
+    </div>
+    <div id="rsec-weekplan">
+      <div class="remco-intro">
+        <strong>📅 Weekplanning</strong>
+        Vink aan welke taken deze week gedaan moeten worden en kies op welke dag.
+      </div>
+      <div id="remcoTasks"></div>
+      <div class="submit-box">
+        <h3>📋 Gegenereerde weeklijst</h3>
+        <div id="generatedWeekList"><p style="color:var(--grijs-tekst);font-size:13px;">Selecteer taken hierboven om ze in te plannen.</p></div>
+        <div class="form-row" style="margin-top:12px;">
+          <label>Opmerkingen / losse notities</label>
+          <textarea id="remcoNotities" rows="3" placeholder="Bijv. extra aandacht voor kantine, leverancier verwacht op donderdag..."></textarea>
+        </div>
+        <button class="btn-primary" style="margin-top:12px;" onclick="saveWeekplan()">Weekplan opslaan ✓</button>
+      </div>
+    </div>
+    <div id="rsec-roosterMaken" style="display:none;">
+      <div class="remco-intro" style="background:var(--blauw-licht);border-color:#BFDBFE;color:#1E40AF;">
+        <strong>🗓️ Rooster maken</strong>
+        Voeg per dag medewerkers toe met hun tijden.
+      </div>
+      <div id="roosterEditor"></div>
+      <button class="btn-primary" style="margin-top:16px;" onclick="saveRooster()">Rooster opslaan en publiceren ✓</button>
+    </div>
+    <div id="rsec-beheer" style="display:none;">
+      <div class="remco-intro" style="background:#F3E8FF;border-color:#D8B4FE;color:#6B21A8;">
+        <strong>⚙️ Beheer</strong>
+        Administratieve taken en periodieke verantwoordelijkheden.
+      </div>
+      <div id="beheerTasks"></div>
+    </div>
   </div>
 </div>
 
 <!-- TAB 3: SPORTVELDEN -->
 <div class="content" id="tab-sportvelden">
-  <div class="sportvelden-intro">
-    <strong>🏟️ Sportvelden – dagelijks onderhoud</strong>
-    Frequenties worden nog bepaald in overleg met Remco. Vink af wat gedaan is.
-  </div>
   <div id="sportveldTasks"></div>
   <div class="submit-box">
     <h3>✍️ Lijst afronden</h3>
@@ -493,16 +535,7 @@
   <div id="onderhoudTasks"></div>
 </div>
 
-<!-- TAB 5: BEHEER -->
-<div class="content" id="tab-beheer">
-  <div class="remco-intro" style="background:#F3E8FF;border-color:#D8B4FE;color:#6B21A8;">
-    <strong>⚙️ Beheer – Remco</strong>
-    Administratieve taken en periodieke verantwoordelijkheden.
-  </div>
-  <div id="beheerTasks"></div>
-</div>
-
-<!-- TAB 6: HISTORIE -->
+<!-- TAB 5: HISTORIE -->
 <div class="content" id="tab-historie">
   <div class="history-filter">
     <div class="form-row">
@@ -985,12 +1018,13 @@ async function init() {
     new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 
   // Load all state from Firebase
-  const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer] = await Promise.all([
+  const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster] = await Promise.all([
     fbGet('dagelijks_' + getTodayKey()),
     fbGet('sportveld_' + getTodayKey()),
     fbGet('onderhoud_state'),
     fbGet('remco_' + getThisWeekKey()),
-    fbGet('beheer_state')
+    fbGet('beheer_state'),
+    fbGet('rooster_data')
   ]);
 
   if (savedDag) dagelijksState = savedDag;
@@ -998,10 +1032,10 @@ async function init() {
   if (savedOnderhoud) onderhoudState = savedOnderhoud;
   if (savedRemco) remcoState = savedRemco;
   if (savedBeheer) beheerState = savedBeheer;
+  if (savedRooster) roosterData = savedRooster;
 
   renderAlerts();
   renderDagelijks();
-  renderRemco();
   renderSportvelden();
   renderOnderhoud();
   renderBeheer();
@@ -1528,6 +1562,152 @@ window.showTab = function showTab(tab, el) {
   document.getElementById('tab-' + tab).classList.add('active');
   el.classList.add('active');
   if (tab === 'historie') renderHistorie();
+  if (tab === 'rooster') renderRoosterView();
+}
+
+window.openRemco = function openRemco(el) {
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-remco').classList.add('active');
+  el.classList.add('active');
+  if (sessionStorage.getItem('remcoUnlocked') === '1') {
+    document.getElementById('pinScreen').style.display = 'none';
+    document.getElementById('remcoContent').style.display = 'block';
+  } else {
+    document.getElementById('pinScreen').style.display = 'block';
+    document.getElementById('remcoContent').style.display = 'none';
+    document.getElementById('pincodeInput').value = '';
+    document.getElementById('pinError').style.display = 'none';
+  }
+}
+
+window.checkPin = function checkPin() {
+  const pin = document.getElementById('pincodeInput').value;
+  if (pin === '5081') {
+    sessionStorage.setItem('remcoUnlocked', '1');
+    document.getElementById('pinScreen').style.display = 'none';
+    document.getElementById('remcoContent').style.display = 'block';
+    renderRemco();
+    renderBeheer();
+    renderRoosterEditor();
+  } else {
+    document.getElementById('pinError').style.display = 'block';
+    document.getElementById('pincodeInput').value = '';
+  }
+}
+
+window.logoutRemco = function logoutRemco() {
+  sessionStorage.removeItem('remcoUnlocked');
+  document.getElementById('pinScreen').style.display = 'block';
+  document.getElementById('remcoContent').style.display = 'none';
+  document.getElementById('pincodeInput').value = '';
+}
+
+window.showRemcoSection = function showRemcoSection(sec) {
+  ['weekplan', 'roosterMaken', 'beheer'].forEach(s => {
+    document.getElementById('rsec-' + s).style.display = s === sec ? 'block' : 'none';
+    const btn = document.getElementById('rbtn-' + s);
+    btn.style.background = s === sec ? 'var(--donker)' : '';
+    btn.style.color = s === sec ? 'var(--wit)' : '';
+    btn.style.border = s === sec ? 'none' : '';
+  });
+}
+
+// ===== ROOSTER =====
+let roosterData = {};
+
+async function loadRooster() {
+  const saved = await fbGet('rooster_data');
+  if (saved) roosterData = saved;
+}
+
+function getWeekDays() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(new Date(d).setDate(diff));
+  const days = [];
+  const dagNamen = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+  for (let i = 0; i < 7; i++) {
+    const dd = new Date(monday);
+    dd.setDate(monday.getDate() + i);
+    days.push({
+      key: dd.toISOString().split('T')[0],
+      label: dagNamen[i] + ' ' + dd.getDate()
+    });
+  }
+  return days;
+}
+
+function renderRoosterView() {
+  const container = document.getElementById('roosterView');
+  const days = getWeekDays();
+  const today = new Date().toISOString().split('T')[0];
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">';
+  days.forEach(day => {
+    const shifts = roosterData[day.key] || [];
+    const isToday = day.key === today;
+    html += `<div style="background:${isToday ? 'var(--blauw-licht)' : 'var(--wit)'};border:0.5px solid ${isToday ? '#BFDBFE' : 'var(--grijs-mid)'};border-radius:10px;padding:10px;">
+      <p style="font-size:12px;font-weight:500;margin:0 0 8px;color:${isToday ? 'var(--blauw)' : 'var(--donker)'};">${day.label}${isToday ? ' — vandaag' : ''}</p>`;
+    if (shifts.length === 0) {
+      html += `<p style="font-size:12px;color:var(--grijs-tekst);">Nog geen rooster</p>`;
+    } else {
+      shifts.forEach(s => {
+        html += `<div style="background:var(--grijs);border-radius:6px;padding:5px 8px;margin-bottom:4px;">
+          <p style="font-size:12px;font-weight:500;margin:0;color:var(--donker);">${s.naam}</p>
+          <p style="font-size:11px;color:var(--grijs-tekst);margin:0;">${s.van} – ${s.tot}</p>
+        </div>`;
+      });
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function renderRoosterEditor() {
+  const container = document.getElementById('roosterEditor');
+  const days = getWeekDays();
+  let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+  days.forEach(day => {
+    const shifts = roosterData[day.key] || [];
+    html += `<div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:12px;">
+      <p style="font-size:13px;font-weight:500;margin:0 0 10px;color:var(--donker);">${day.label}</p>`;
+    shifts.forEach((s, idx) => {
+      html += `<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap;">
+        <input type="text" value="${s.naam}" placeholder="Naam" style="flex:1;min-width:80px;font-size:13px;padding:6px 8px;" onchange="updateShift('${day.key}',${idx},'naam',this.value)">
+        <input type="time" value="${s.van}" style="font-size:13px;padding:6px 8px;width:90px;" onchange="updateShift('${day.key}',${idx},'van',this.value)">
+        <input type="time" value="${s.tot}" style="font-size:13px;padding:6px 8px;width:90px;" onchange="updateShift('${day.key}',${idx},'tot',this.value)">
+        <button onclick="removeShift('${day.key}',${idx})" style="font-size:13px;padding:6px 8px;color:var(--rood);">✕</button>
+      </div>`;
+    });
+    html += `<button onclick="addShift('${day.key}')" style="font-size:12px;padding:5px 10px;width:100%;margin-top:4px;">+ Medewerker toevoegen</button>
+    </div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+window.addShift = function addShift(dayKey) {
+  if (!roosterData[dayKey]) roosterData[dayKey] = [];
+  roosterData[dayKey].push({ naam: '', van: '09:00', tot: '17:00' });
+  renderRoosterEditor();
+}
+
+window.removeShift = function removeShift(dayKey, idx) {
+  roosterData[dayKey].splice(idx, 1);
+  renderRoosterEditor();
+}
+
+window.updateShift = function updateShift(dayKey, idx, field, value) {
+  if (!roosterData[dayKey]) roosterData[dayKey] = [];
+  roosterData[dayKey][idx][field] = value;
+}
+
+window.saveRooster = async function saveRooster() {
+  await fbSet('rooster_data', roosterData);
+  renderRoosterView();
+  showToast('Rooster opgeslagen! ✓');
 }
 
 function showToast(msg) {
