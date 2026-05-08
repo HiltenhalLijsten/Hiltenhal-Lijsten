@@ -1587,7 +1587,11 @@ window.checkPin = function checkPin() {
     sessionStorage.setItem('remcoUnlocked', '1');
     document.getElementById('pinScreen').style.display = 'none';
     document.getElementById('remcoContent').style.display = 'block';
-    renderRemco();
+    // Reset remco state for current week to avoid showing old data
+    fbGet('remco_' + getThisWeekKey()).then(saved => {
+      remcoState = saved || {};
+      renderRemco();
+    });
     renderBeheer();
     renderRoosterEditor();
   } else {
@@ -1615,17 +1619,14 @@ window.showRemcoSection = function showRemcoSection(sec) {
 
 // ===== ROOSTER =====
 let roosterData = {};
+let roosterViewWeekOffset = 0;
+let roosterEditWeekOffset = 0;
 
-async function loadRooster() {
-  const saved = await fbGet('rooster_data');
-  if (saved) roosterData = saved;
-}
-
-function getWeekDays() {
+function getWeekDays(offset = 0) {
   const d = new Date();
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(new Date(d).setDate(diff));
+  const monday = new Date(new Date(d).setDate(diff + offset * 7));
   const days = [];
   const dagNamen = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
   for (let i = 0; i < 7; i++) {
@@ -1636,21 +1637,36 @@ function getWeekDays() {
       label: dagNamen[i] + ' ' + dd.getDate()
     });
   }
-  return days;
+  const weekNr = getWeekNumber(monday);
+  return { days, weekNr, monday };
+}
+
+function getWeekNumber(d) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
 }
 
 function renderRoosterView() {
   const container = document.getElementById('roosterView');
-  const days = getWeekDays();
+  const { days, weekNr } = getWeekDays(roosterViewWeekOffset);
   const today = new Date().toISOString().split('T')[0];
-  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">';
+  
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <button onclick="roosterViewWeekOffset--;renderRoosterView()" style="font-size:13px;padding:5px 12px;">← Vorige week</button>
+    <p style="font-size:13px;font-weight:500;margin:0;color:var(--donker);">Week ${weekNr}</p>
+    <button onclick="roosterViewWeekOffset++;renderRoosterView()" style="font-size:13px;padding:5px 12px;">Volgende week →</button>
+  </div>`;
+  
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">';
   days.forEach(day => {
     const shifts = roosterData[day.key] || [];
     const isToday = day.key === today;
     html += `<div style="background:${isToday ? 'var(--blauw-licht)' : 'var(--wit)'};border:0.5px solid ${isToday ? '#BFDBFE' : 'var(--grijs-mid)'};border-radius:10px;padding:10px;">
-      <p style="font-size:12px;font-weight:500;margin:0 0 8px;color:${isToday ? 'var(--blauw)' : 'var(--donker)'};">${day.label}${isToday ? ' — vandaag' : ''}</p>`;
+      <p style="font-size:12px;font-weight:500;margin:0 0 8px;color:${isToday ? '#1E40AF' : 'var(--donker)'};">${day.label}${isToday ? ' ✦' : ''}</p>`;
     if (shifts.length === 0) {
-      html += `<p style="font-size:12px;color:var(--grijs-tekst);">Nog geen rooster</p>`;
+      html += `<p style="font-size:11px;color:var(--grijs-tekst);">—</p>`;
     } else {
       shifts.forEach(s => {
         html += `<div style="background:var(--grijs);border-radius:6px;padding:5px 8px;margin-bottom:4px;">
@@ -1667,8 +1683,15 @@ function renderRoosterView() {
 
 function renderRoosterEditor() {
   const container = document.getElementById('roosterEditor');
-  const days = getWeekDays();
-  let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+  const { days, weekNr } = getWeekDays(roosterEditWeekOffset);
+
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <button onclick="roosterEditWeekOffset--;renderRoosterEditor()" style="font-size:13px;padding:5px 12px;">← Vorige week</button>
+    <p style="font-size:13px;font-weight:500;margin:0;color:var(--donker);">Week ${weekNr}</p>
+    <button onclick="roosterEditWeekOffset++;renderRoosterEditor()" style="font-size:13px;padding:5px 12px;">Volgende week →</button>
+  </div>`;
+
+  html += '<div style="display:flex;flex-direction:column;gap:12px;">';
   days.forEach(day => {
     const shifts = roosterData[day.key] || [];
     html += `<div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:12px;">
