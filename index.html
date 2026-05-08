@@ -451,11 +451,7 @@
 
 <!-- TAB 2: ROOSTER (readonly) -->
 <div class="content" id="tab-rooster">
-  <div class="remco-intro" style="background:var(--blauw-licht);border-color:#BFDBFE;color:#1E40AF;">
-    <strong>📅 Weekrooster</strong>
-    Bekijk hier het rooster. Alleen Remco kan het aanpassen.
-  </div>
-  <div id="roosterView"></div>
+<div id="roosterView"></div>
 </div>
 
 <!-- TAB REMCO (pincode protected) -->
@@ -476,11 +472,7 @@
       <button onclick="logoutRemco()" style="font-size:13px;padding:6px 14px;border-radius:6px;margin-left:auto;color:var(--rood);">Uitloggen</button>
     </div>
     <div id="rsec-weekplan">
-      <div class="remco-intro">
-        <strong>📅 Weekplanning</strong>
-        Vink aan welke taken deze week gedaan moeten worden en kies op welke dag.
-      </div>
-      <div id="remcoTasks"></div>
+<div id="remcoTasks"></div>
       <div class="submit-box">
         <h3>📋 Gegenereerde weeklijst</h3>
         <div id="generatedWeekList"><p style="color:var(--grijs-tekst);font-size:13px;">Selecteer taken hierboven om ze in te plannen.</p></div>
@@ -504,19 +496,11 @@
       </div>
     </div>
     <div id="rsec-roosterMaken" style="display:none;">
-      <div class="remco-intro" style="background:var(--blauw-licht);border-color:#BFDBFE;color:#1E40AF;">
-        <strong>🗓️ Rooster maken</strong>
-        Voeg per dag medewerkers toe met hun tijden.
-      </div>
-      <div id="roosterEditor"></div>
+<div id="roosterEditor"></div>
       <button class="btn-primary" style="margin-top:16px;" onclick="saveRooster()">Rooster opslaan en publiceren ✓</button>
     </div>
     <div id="rsec-beheer" style="display:none;">
-      <div class="remco-intro" style="background:#F3E8FF;border-color:#D8B4FE;color:#6B21A8;">
-        <strong>⚙️ Beheer</strong>
-        Administratieve taken en periodieke verantwoordelijkheden.
-      </div>
-      <div id="beheerTasks"></div>
+<div id="beheerTasks"></div>
     </div>
   </div>
 </div>
@@ -540,11 +524,7 @@
 
 <!-- TAB 4: ONDERHOUD -->
 <div class="content" id="tab-onderhoud">
-  <div class="remco-intro" style="background:var(--oranje-licht);border-color:#FDE68A;color:#92400E;">
-    <strong>🔧 Periodiek onderhoud & inspecties</strong>
-    Technische controles. Vink af als je een controle hebt uitgevoerd — dit wordt opgeslagen in de historie.
-  </div>
-  <div id="onderhoudTasks"></div>
+<div id="onderhoudTasks"></div>
 </div>
 
 <!-- TAB 5: HISTORIE -->
@@ -814,7 +794,8 @@ const remcoTakenData = [
     { naam: "BBQ grondig schoonmaken", freq: "Na evenement / wekelijks" },
     { naam: "Terras vloer vegen", freq: "Wekelijks" },
     { naam: "Schoonmaakkast opruimen", freq: "Wekelijks" },
-    { naam: "Buiten water geven", freq: "Wekelijks" }
+    { naam: "Buiten water geven", freq: "Wekelijks" },
+    { naam: "Grasmaaien", freq: "Wekelijks" }
   ]},
   { sectie: "Keuken – extra taken", taken: [
     { naam: "Vriezer 1 ontdooien", freq: "Wekelijks" },
@@ -1589,7 +1570,7 @@ function renderBeheer() {
       item.innerHTML = `
         <div class="task-check">${isDone ? '✓' : ''}</div>
         <div class="task-label">${taak.naam}</div>
-        <span class="onderhoud-badge badge-maandelijks">${taak.freq}</span>`;
+        <span class="onderhoud-badge badge-maandelijks" style="display:none">${taak.freq}</span>`;
       item.onclick = () => {
         beheerState[key] = !beheerState[key];
         fbSet('beheer_state', beheerState);
