@@ -485,6 +485,18 @@
         <h3>📋 Gegenereerde weeklijst</h3>
         <div id="generatedWeekList"><p style="color:var(--grijs-tekst);font-size:13px;">Selecteer taken hierboven om ze in te plannen.</p></div>
         <div class="form-row" style="margin-top:12px;">
+          <label>Losse taak toevoegen</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <input type="text" id="losTaakTekst" placeholder="Omschrijving taak..." style="flex:1;min-width:150px;">
+            <select id="losTaakDag" style="font-size:14px;padding:10px 12px;">
+              <option value="">Kies dag</option>
+              <option>Ma</option><option>Di</option><option>Wo</option><option>Do</option><option>Vr</option><option>Za</option><option>Zo</option>
+            </select>
+            <button onclick="addLosTaak()" style="font-size:13px;padding:10px 14px;background:var(--donker);color:var(--wit);border:none;border-radius:8px;">+ Voeg toe</button>
+          </div>
+          <div id="losTakenLijst" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+        <div class="form-row" style="margin-top:12px;">
           <label>Opmerkingen / losse notities</label>
           <textarea id="remcoNotities" rows="3" placeholder="Bijv. extra aandacht voor kantine, leverancier verwacht op donderdag..."></textarea>
         </div>
@@ -942,6 +954,33 @@ let sportveldState = {};
 let remcoState = {};
 let onderhoudState = {};
 let beheerState = {};
+let losTaken = [];
+
+function renderLosTaken() {
+  const container = document.getElementById('losTakenLijst');
+  if (!container) return;
+  container.innerHTML = losTaken.map((t, i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--blauw-licht);border-radius:6px;padding:6px 10px;">
+      <span style="font-size:12px;font-weight:500;background:#BFDBFE;color:#1E40AF;padding:2px 8px;border-radius:10px;">${t.dag}</span>
+      <span style="font-size:13px;flex:1;color:var(--donker);">${t.tekst}</span>
+      <button onclick="removeLosTaak(${i})" style="font-size:12px;color:var(--rood);background:none;border:none;cursor:pointer;">✕</button>
+    </div>`).join('');
+}
+
+window.addLosTaak = function addLosTaak() {
+  const tekst = document.getElementById('losTaakTekst').value.trim();
+  const dag = document.getElementById('losTaakDag').value;
+  if (!tekst || !dag) { showToast('Vul een taak en dag in!'); return; }
+  losTaken.push({ tekst, dag });
+  document.getElementById('losTaakTekst').value = '';
+  document.getElementById('losTaakDag').value = '';
+  renderLosTaken();
+}
+
+window.removeLosTaak = function removeLosTaak(i) {
+  losTaken.splice(i, 1);
+  renderLosTaken();
+}
 let collapsedSections = {};
 
 const DAYS = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
@@ -1294,8 +1333,14 @@ window.saveWeekplan = function saveWeekplan() {
       }
     });
   });
-  if (!Object.values(byDay).some(arr => arr.length > 0)) { showToast('Selecteer eerst taken!'); return; }
+  // Add losse taken
+  losTaken.forEach(t => { if (byDay[t.dag]) byDay[t.dag].push(t.tekst); });
+  
+  if (!Object.values(byDay).some(arr => arr.length > 0) && losTaken.length === 0) { showToast('Selecteer eerst taken!'); return; }
   saveToHistory({ type: 'weekplan', weekKey: getThisWeekKey(), datum: new Date().toISOString(), door: 'Remco', taken: byDay });
+  fbSet('remco_' + getThisWeekKey(), remcoState);
+  losTaken = [];
+  renderLosTaken();
   showToast('Weekplan opgeslagen! ✓');
 }
 
@@ -1562,7 +1607,7 @@ window.showTab = function showTab(tab, el) {
   document.getElementById('tab-' + tab).classList.add('active');
   el.classList.add('active');
   if (tab === 'historie') renderHistorie();
-  if (tab === 'rooster') renderRoosterView();
+  if (tab === 'rooster') window.renderRoosterView();
 }
 
 window.openRemco = function openRemco(el) {
@@ -1593,7 +1638,7 @@ window.checkPin = function checkPin() {
       renderRemco();
     });
     renderBeheer();
-    renderRoosterEditor();
+    window.renderRoosterEditor();
   } else {
     document.getElementById('pinError').style.display = 'block';
     document.getElementById('pincodeInput').value = '';
@@ -1619,8 +1664,8 @@ window.showRemcoSection = function showRemcoSection(sec) {
 
 // ===== ROOSTER =====
 let roosterData = {};
-let roosterViewWeekOffset = 0;
-let roosterEditWeekOffset = 0;
+window.roosterViewWeekOffset = 0;
+window.roosterEditWeekOffset = 0;
 
 function getWeekDays(offset = 0) {
   const d = new Date();
@@ -1648,15 +1693,15 @@ function getWeekNumber(d) {
   return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
 }
 
-function renderRoosterView() {
+window.renderRoosterView = function renderRoosterView() {
   const container = document.getElementById('roosterView');
-  const { days, weekNr } = getWeekDays(roosterViewWeekOffset);
+  const { days, weekNr } = getWeekDays(window.roosterViewWeekOffset);
   const today = new Date().toISOString().split('T')[0];
   
   let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-    <button onclick="roosterViewWeekOffset--;renderRoosterView()" style="font-size:13px;padding:5px 12px;">← Vorige week</button>
+    <button onclick="window.roosterViewWeekOffset--;window.renderRoosterView()" style="font-size:13px;padding:5px 12px;">← Vorige week</button>
     <p style="font-size:13px;font-weight:500;margin:0;color:var(--donker);">Week ${weekNr}</p>
-    <button onclick="roosterViewWeekOffset++;renderRoosterView()" style="font-size:13px;padding:5px 12px;">Volgende week →</button>
+    <button onclick="window.roosterViewWeekOffset++;window.renderRoosterView()" style="font-size:13px;padding:5px 12px;">Volgende week →</button>
   </div>`;
   
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">';
@@ -1681,14 +1726,14 @@ function renderRoosterView() {
   container.innerHTML = html;
 }
 
-function renderRoosterEditor() {
+window.renderRoosterEditor = function renderRoosterEditor() {
   const container = document.getElementById('roosterEditor');
-  const { days, weekNr } = getWeekDays(roosterEditWeekOffset);
+  const { days, weekNr } = getWeekDays(window.roosterEditWeekOffset);
 
   let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-    <button onclick="roosterEditWeekOffset--;renderRoosterEditor()" style="font-size:13px;padding:5px 12px;">← Vorige week</button>
+    <button onclick="window.roosterEditWeekOffset--;window.renderRoosterEditor()" style="font-size:13px;padding:5px 12px;">← Vorige week</button>
     <p style="font-size:13px;font-weight:500;margin:0;color:var(--donker);">Week ${weekNr}</p>
-    <button onclick="roosterEditWeekOffset++;renderRoosterEditor()" style="font-size:13px;padding:5px 12px;">Volgende week →</button>
+    <button onclick="window.roosterEditWeekOffset++;window.renderRoosterEditor()" style="font-size:13px;padding:5px 12px;">Volgende week →</button>
   </div>`;
 
   html += '<div style="display:flex;flex-direction:column;gap:12px;">';
