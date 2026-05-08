@@ -1688,7 +1688,7 @@ window.renderRoosterView = function renderRoosterView() {
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;">';
   days.forEach(day => {
     const dagData = roosterData[day.key] || { shifts: [], opmerking: '' };
-    const shifts = dagData.shifts || dagData; // backwards compat
+    const shifts = (Array.isArray(dagData) ? dagData : (dagData.shifts || [])).slice().sort((a, b) => a.van.localeCompare(b.van));
     const opmerking = dagData.opmerking || '';
     const isToday = day.key === today;
     
