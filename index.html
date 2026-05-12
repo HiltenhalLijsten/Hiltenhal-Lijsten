@@ -1042,22 +1042,25 @@ async function init() {
   document.getElementById('headerDate').textContent =
     new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 
-  // Load all state from Firebase
-  const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster] = await Promise.all([
-    fbGet('dagelijks_' + getTodayKey()),
-    fbGet('sportveld_' + getTodayKey()),
-    fbGet('onderhoud_state'),
-    fbGet('remco_' + getThisWeekKey()),
-    fbGet('beheer_state'),
-    fbGet('rooster_data')
-  ]);
+  try {
+    const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster] = await Promise.all([
+      fbGet('dagelijks_' + getTodayKey()),
+      fbGet('sportveld_' + getTodayKey()),
+      fbGet('onderhoud_state'),
+      fbGet('remco_' + getThisWeekKey()),
+      fbGet('beheer_state'),
+      fbGet('rooster_data')
+    ]);
 
-  if (savedDag) dagelijksState = savedDag;
-  if (savedSport) sportveldState = savedSport;
-  if (savedOnderhoud) onderhoudState = savedOnderhoud;
-  if (savedRemco) remcoState = savedRemco;
-  if (savedBeheer) beheerState = savedBeheer;
-  if (savedRooster) roosterData = savedRooster;
+    if (savedDag) dagelijksState = savedDag;
+    if (savedSport) sportveldState = savedSport;
+    if (savedOnderhoud) onderhoudState = savedOnderhoud;
+    if (savedRemco) remcoState = savedRemco;
+    if (savedBeheer) beheerState = savedBeheer;
+    if (savedRooster) roosterData = savedRooster;
+  } catch(e) {
+    console.error('Firebase laden mislukt, app start met lege staat:', e);
+  }
 
   renderAlerts();
   renderDagelijks();
