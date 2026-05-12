@@ -1706,7 +1706,7 @@ window.renderRoosterView = function renderRoosterView() {
       shifts.forEach((s, idx) => {
         const aangemeld = s.aanmeldingen || [];
         const aangemeldLijst = aangemeld.length > 0 
-          ? aangemeld.map(n => `<span style="display:inline-block;background:var(--groen-licht);color:var(--groen);font-size:11px;font-weight:500;padding:2px 7px;border-radius:10px;margin:1px;">${n}</span>`).join('')
+          ? aangemeld.map((n, ni) => `<span style="display:inline-flex;align-items:center;gap:3px;background:var(--groen-licht);color:var(--groen);font-size:11px;font-weight:500;padding:2px 6px;border-radius:10px;margin:1px;">${n}<button onclick="removeAanmelding('${day.key}',${idx},${ni})" style="background:none;border:none;cursor:pointer;color:var(--groen);font-size:11px;line-height:1;padding:0 0 0 2px;">✕</button></span>`).join('')
           : '';
         
         const opties = MEDEWERKERS.map(n => `<option value="${n}">${n}</option>`).join('');
@@ -1813,6 +1813,16 @@ window.updateOpmerking = function updateOpmerking(dayKey, value) {
   } else {
     roosterData[dayKey].opmerking = value;
   }
+}
+
+window.removeAanmelding = async function removeAanmelding(dayKey, shiftIdx, naamIdx) {
+  if (!roosterData[dayKey] || Array.isArray(roosterData[dayKey])) return;
+  const shift = roosterData[dayKey].shifts[shiftIdx];
+  if (!shift.aanmeldingen) return;
+  shift.aanmeldingen.splice(naamIdx, 1);
+  await fbSet('rooster_data', roosterData);
+  window.renderRoosterView();
+  showToast('Aanmelding verwijderd!');
 }
 
 window.claimShift = async function claimShift(dayKey, idx) {
