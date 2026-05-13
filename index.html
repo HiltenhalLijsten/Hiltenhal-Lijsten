@@ -1920,7 +1920,7 @@ window.renderRoosterEditor = function renderRoosterEditor() {
           ? `<button onclick="updateShift('${day.key}',${idx},'tot','17:00');window.renderRoosterEditor()" style="font-size:13px;padding:6px 12px;background:var(--donker);color:var(--wit);border:none;border-radius:6px;">Sluit</button>`
           : `<input type="time" value="${s.tot}" style="font-size:13px;padding:6px 8px;width:95px;" onchange="updateShift('${day.key}',${idx},'tot',this.value)">`
         }
-        <button onclick="updateShift('${day.key}',${idx},'tot','sluit');window.renderRoosterEditor()" style="font-size:11px;padding:5px 8px;border-radius:6px;${isSluit?'opacity:0.4':''}" title="Zet op Sluit">🔒</button>
+        <button onclick="updateShift('${day.key}',${idx},'tot','sluit');window.renderRoosterEditor()" style="font-size:11px;padding:5px 8px;border-radius:6px;${isSluit?'opacity:0.4':''}" title="Zet op Sluit">Sluit</button>
         <button onclick="removeShift('${day.key}',${idx})" style="font-size:13px;padding:6px 8px;color:var(--rood);">✕</button>
       </div>`;
     });
