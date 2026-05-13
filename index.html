@@ -470,6 +470,7 @@
       <button id="rbtn-roosterMaken" onclick="showRemcoSection('roosterMaken')" style="font-size:13px;padding:6px 14px;border-radius:6px;">🗓️ Rooster maken</button>
       <button id="rbtn-afval" onclick="showRemcoSection('afval')" style="font-size:13px;padding:6px 14px;border-radius:6px;">🗑️ Afval</button>
       <button id="rbtn-beheer" onclick="showRemcoSection('beheer')" style="font-size:13px;padding:6px 14px;border-radius:6px;">⚙️ Beheer</button>
+      <button id="rbtn-lijsten" onclick="showRemcoSection('lijsten')" style="font-size:13px;padding:6px 14px;border-radius:6px;">✏️ Lijsten</button>
       <button onclick="logoutRemco()" style="font-size:13px;padding:6px 14px;border-radius:6px;margin-left:auto;color:var(--rood);">Uitloggen</button>
     </div>
     <div id="rsec-weekplan">
@@ -502,6 +503,9 @@
     </div>
     <div id="rsec-afval" style="display:none;">
       <div id="afvalCalendar"></div>
+    </div>
+    <div id="rsec-lijsten" style="display:none;">
+      <div id="lijstenBeheer"></div>
     </div>
     <div id="rsec-beheer" style="display:none;">
 <div id="beheerTasks"></div>
@@ -1042,14 +1046,15 @@ async function init() {
     new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 
   try {
-    const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster, savedAfval] = await Promise.all([
+    const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster, savedAfval, savedLijsten] = await Promise.all([
       fbGet('dagelijks_' + getTodayKey()),
       fbGet('sportveld_' + getTodayKey()),
       fbGet('onderhoud_state'),
       fbGet('remco_' + getThisWeekKey()),
       fbGet('beheer_state'),
       fbGet('rooster_data'),
-    fbGet('afval_data')
+    fbGet('afval_data'),
+    fbGet('lijsten_aanpassingen')
     ]);
 
     if (savedDag) dagelijksState = savedDag;
@@ -1059,6 +1064,7 @@ async function init() {
     if (savedBeheer) beheerState = savedBeheer;
     if (savedRooster) roosterData = savedRooster;
     if (savedAfval) afvalData = savedAfval;
+    if (savedLijsten) lijstenAanpassingen = savedLijsten;
   } catch(e) {
     console.error('Firebase laden mislukt, app start met lege staat:', e);
   }
@@ -1168,19 +1174,23 @@ function renderDagelijks() {
   dagelijksTakenData.forEach((sectie, si) => {
     const sKey = 'd' + si;
     const collapsed = collapsedSections[sKey];
+    const aanp = (lijstenAanpassingen['dagelijks'] || {})[sectie.sectie] || { verborgen: [], extra: [] };
+    const alleTaken = [...sectie.taken.filter(t => !(aanp.verborgen || []).includes(t)), ...(aanp.extra || [])];
     let sectieDone = 0;
 
-    sectie.taken.forEach((taak, ti) => {
-      const key = si + '_' + ti;
+    alleTaken.forEach((taak, ti) => {
+      const key = 'd' + si + '_' + ti;
       if (dagelijksState[key]) { done++; sectieDone++; }
       total++;
     });
 
+    if (alleTaken.length === 0) return;
+
     const header = document.createElement('div');
     header.className = 'section-header' + (collapsed ? ' collapsed' : '');
     header.innerHTML = `<span class="section-icon">${sectie.icon}</span>${sectie.sectie}
-      <span class="section-count-badge">${sectieDone}/${sectie.taken.length}</span>
-      <span class="section-progress">${Math.round(sectieDone/sectie.taken.length*100)}%</span>
+      <span class="section-count-badge">${sectieDone}/${alleTaken.length}</span>
+      <span class="section-progress">${Math.round(sectieDone/alleTaken.length*100)}%</span>
       <span class="section-toggle">▼</span>`;
     header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderDagelijks(); };
     container.appendChild(header);
@@ -1188,8 +1198,8 @@ function renderDagelijks() {
     const list = document.createElement('div');
     list.className = 'task-list' + (collapsed ? ' collapsed' : '');
 
-    sectie.taken.forEach((taak, ti) => {
-      const key = si + '_' + ti;
+    alleTaken.forEach((taak, ti) => {
+      const key = 'd' + si + '_' + ti;
       const isDone = !!dagelijksState[key];
       const item = document.createElement('div');
       item.className = 'task-item' + (isDone ? ' done' : '');
@@ -1219,18 +1229,22 @@ function renderSportvelden() {
   sportveldTakenData.forEach((sectie, si) => {
     const sKey = 'sv' + si;
     const collapsed = collapsedSections[sKey];
+    const aanp = (lijstenAanpassingen['sportvelden'] || {})[sectie.sectie] || { verborgen: [], extra: [] };
+    const alleTaken = [...sectie.taken.filter(t => !(aanp.verborgen || []).includes(t)), ...(aanp.extra || [])];
     let sectieDone = 0;
 
-    sectie.taken.forEach((taak, ti) => {
+    alleTaken.forEach((taak, ti) => {
       const key = 'sv' + si + '_' + ti;
       if (sportveldState[key]) { done++; sectieDone++; }
       total++;
     });
 
+    if (alleTaken.length === 0) return;
+
     const header = document.createElement('div');
     header.className = 'section-header' + (collapsed ? ' collapsed' : '');
     header.innerHTML = `<span class="section-icon">${sectie.icon}</span>${sectie.sectie}
-      <span class="section-count-badge">${sectieDone}/${sectie.taken.length}</span>
+      <span class="section-count-badge">${sectieDone}/${alleTaken.length}</span>
       <span class="section-toggle">▼</span>`;
     header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderSportvelden(); };
     container.appendChild(header);
@@ -1238,7 +1252,7 @@ function renderSportvelden() {
     const list = document.createElement('div');
     list.className = 'task-list' + (collapsed ? ' collapsed' : '');
 
-    sectie.taken.forEach((taak, ti) => {
+    alleTaken.forEach((taak, ti) => {
       const key = 'sv' + si + '_' + ti;
       const isDone = !!sportveldState[key];
       const item = document.createElement('div');
@@ -1680,7 +1694,7 @@ window.logoutRemco = function logoutRemco() {
 }
 
 window.showRemcoSection = function showRemcoSection(sec) {
-  ['weekplan', 'roosterMaken', 'afval', 'beheer'].forEach(s => {
+  ['weekplan', 'roosterMaken', 'afval', 'lijsten', 'beheer'].forEach(s => {
     const el = document.getElementById('rsec-' + s);
     if (el) el.style.display = s === sec ? 'block' : 'none';
     const btn = document.getElementById('rbtn-' + s);
@@ -1691,6 +1705,130 @@ window.showRemcoSection = function showRemcoSection(sec) {
     }
   });
   if (sec === 'afval') renderAfvalCalendar();
+  if (sec === 'lijsten') renderLijstenBeheer();
+}
+
+// ===== LIJSTEN BEHEER =====
+// lijstenAanpassingen = { 
+//   dagelijks: { 'sectieNaam': { verborgen: ['taak1'], extra: ['taak2'] } },
+//   sportvelden: { ... },
+//   remco: { ... }
+// }
+let lijstenAanpassingen = {};
+
+async function loadLijstenAanpassingen() {
+  const saved = await fbGet('lijsten_aanpassingen');
+  if (saved) lijstenAanpassingen = saved;
+}
+
+async function saveLijstenAanpassingen() {
+  await fbSet('lijsten_aanpassingen', lijstenAanpassingen);
+}
+
+function getLijstData(lijstNaam) {
+  if (lijstNaam === 'dagelijks') return dagelijksTakenData.map(s => ({ sectie: s.sectie, taken: s.taken }));
+  if (lijstNaam === 'sportvelden') return sportveldTakenData.map(s => ({ sectie: s.sectie, taken: s.taken }));
+  if (lijstNaam === 'remco') return remcoTakenData.map(s => ({ sectie: s.sectie, taken: s.taken.map(t => t.naam) }));
+  return [];
+}
+
+let activeLijst = 'dagelijks';
+
+function renderLijstenBeheer() {
+  const container = document.getElementById('lijstenBeheer');
+  const lijsten = [
+    { key: 'dagelijks', label: '📋 Dagelijkse lijst' },
+    { key: 'sportvelden', label: '🏟️ Sportvelden' },
+    { key: 'remco', label: '📅 Remco weekplanning' }
+  ];
+
+  let html = `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    ${lijsten.map(l => `<button onclick="setActiveLijst('${l.key}')" id="lbtn-${l.key}" style="font-size:13px;padding:6px 14px;border-radius:20px;${activeLijst===l.key ? 'background:var(--donker);color:var(--wit);border:none;' : ''}">${l.label}</button>`).join('')}
+  </div>`;
+
+  const data = getLijstData(activeLijst);
+  const aanp = lijstenAanpassingen[activeLijst] || {};
+
+  data.forEach(sectie => {
+    const sectieAanp = aanp[sectie.sectie] || { verborgen: [], extra: [] };
+    const alleTaken = [...sectie.taken, ...(sectieAanp.extra || [])];
+
+    html += `<div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:12px;margin-bottom:10px;">
+      <p style="font-size:13px;font-weight:500;margin:0 0 10px;color:var(--donker);">${sectie.sectie}</p>`;
+
+    alleTaken.forEach(taak => {
+      const taakNaam = typeof taak === 'string' ? taak : taak.naam || taak;
+      const isVerborgen = (sectieAanp.verborgen || []).includes(taakNaam);
+      const isExtra = (sectieAanp.extra || []).includes(taakNaam);
+
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--grijs-mid);">
+        <span style="font-size:13px;flex:1;color:${isVerborgen ? 'var(--grijs-tekst)' : 'var(--donker)'};${isVerborgen ? 'text-decoration:line-through;' : ''}">${taakNaam}${isExtra ? ' <span style="font-size:10px;background:#DBEAFE;color:#1E40AF;padding:1px 5px;border-radius:8px;">nieuw</span>' : ''}</span>
+        <button onclick="toggleTaakZichtbaar('${activeLijst}','${sectie.sectie}','${taakNaam.replace(/'/g,"\\'")}',${isVerborgen})" style="font-size:11px;padding:4px 8px;border-radius:6px;background:${isVerborgen ? 'var(--groen-licht)' : '#FEE2E2'};color:${isVerborgen ? 'var(--groen)' : 'var(--rood)'};border:none;">${isVerborgen ? '👁️ Tonen' : '🚫 Verbergen'}</button>
+        ${isExtra ? `<button onclick="verwijderExtraTaak('${activeLijst}','${sectie.sectie}','${taakNaam.replace(/'/g,"\\'")}') " style="font-size:11px;padding:4px 8px;border-radius:6px;color:var(--rood);background:none;border:none;">✕</button>` : ''}
+      </div>`;
+    });
+
+    html += `<div style="display:flex;gap:8px;margin-top:8px;">
+      <input type="text" id="nieuw_${activeLijst}_${sectie.sectie.replace(/\s/g,'_')}" placeholder="Nieuwe taak toevoegen..." style="flex:1;font-size:13px;padding:6px 8px;">
+      <button onclick="voegTaakToe('${activeLijst}','${sectie.sectie}')" style="font-size:13px;padding:6px 12px;background:var(--goud);color:var(--donker);border:none;border-radius:6px;font-weight:500;">+ Toevoegen</button>
+    </div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+window.setActiveLijst = function(lijst) {
+  activeLijst = lijst;
+  renderLijstenBeheer();
+}
+
+window.toggleTaakZichtbaar = async function(lijst, sectie, taak, isVerborgen) {
+  if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
+  if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
+  const verborgen = lijstenAanpassingen[lijst][sectie].verborgen;
+  if (isVerborgen) {
+    const idx = verborgen.indexOf(taak);
+    if (idx >= 0) verborgen.splice(idx, 1);
+  } else {
+    if (!verborgen.includes(taak)) verborgen.push(taak);
+  }
+  await saveLijstenAanpassingen();
+  renderLijstenBeheer();
+  renderDagelijks();
+  renderSportvelden();
+  renderRemco();
+  showToast(isVerborgen ? 'Taak weer zichtbaar!' : 'Taak verborgen!');
+}
+
+window.voegTaakToe = async function(lijst, sectie) {
+  const inputId = `nieuw_${lijst}_${sectie.replace(/\s/g,'_')}`;
+  const input = document.getElementById(inputId);
+  if (!input || !input.value.trim()) { showToast('Vul een taaknaam in!'); return; }
+  const taak = input.value.trim();
+  if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
+  if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
+  lijstenAanpassingen[lijst][sectie].extra.push(taak);
+  input.value = '';
+  await saveLijstenAanpassingen();
+  renderLijstenBeheer();
+  renderDagelijks();
+  renderSportvelden();
+  renderRemco();
+  showToast('Taak toegevoegd!');
+}
+
+window.verwijderExtraTaak = async function(lijst, sectie, taak) {
+  if (!lijstenAanpassingen[lijst]?.[sectie]) return;
+  const extra = lijstenAanpassingen[lijst][sectie].extra;
+  const idx = extra.indexOf(taak);
+  if (idx >= 0) extra.splice(idx, 1);
+  await saveLijstenAanpassingen();
+  renderLijstenBeheer();
+  renderDagelijks();
+  renderSportvelden();
+  renderRemco();
+  showToast('Taak verwijderd!');
 }
 
 // ===== AFVAL KALENDER =====
