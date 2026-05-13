@@ -1855,7 +1855,7 @@ window.renderRoosterView = function renderRoosterView() {
         const opties = MEDEWERKERS.map(n => `<option value="${n}">${n}</option>`).join('');
         
         html += `<div style="background:var(--grijs);border:0.5px solid var(--grijs-mid);border-radius:6px;padding:6px 8px;margin-bottom:6px;">
-          <p style="font-size:11px;color:var(--grijs-tekst);margin:0 0 4px;">${s.van} – ${s.tot}</p>
+          <p style="font-size:11px;color:var(--grijs-tekst);margin:0 0 4px;">${s.van} – ${s.tot === 'sluit' ? 'Sluit' : s.tot}</p>
           ${aangemeldLijst ? `<div style="margin-bottom:6px;">${aangemeldLijst}</div>` : ''}
           <div style="display:flex;gap:4px;">
             <select id="drop_${day.key}_${idx}" style="flex:1;font-size:12px;padding:4px 6px;">
@@ -1912,10 +1912,15 @@ window.renderRoosterEditor = function renderRoosterEditor() {
       <p style="font-size:13px;font-weight:500;margin:0 0 10px;color:var(--donker);">${day.label}</p>`;
     
     shifts.forEach((s, idx) => {
+      const isSluit = s.tot === 'sluit';
       html += `<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap;">
         <input type="time" value="${s.van}" style="font-size:13px;padding:6px 8px;width:95px;" onchange="updateShift('${day.key}',${idx},'van',this.value)">
         <span style="font-size:13px;color:var(--grijs-tekst);">–</span>
-        <input type="time" value="${s.tot}" style="font-size:13px;padding:6px 8px;width:95px;" onchange="updateShift('${day.key}',${idx},'tot',this.value)">
+        ${isSluit 
+          ? `<button onclick="updateShift('${day.key}',${idx},'tot','17:00');window.renderRoosterEditor()" style="font-size:13px;padding:6px 12px;background:var(--donker);color:var(--wit);border:none;border-radius:6px;">Sluit</button>`
+          : `<input type="time" value="${s.tot}" style="font-size:13px;padding:6px 8px;width:95px;" onchange="updateShift('${day.key}',${idx},'tot',this.value)">`
+        }
+        <button onclick="updateShift('${day.key}',${idx},'tot','sluit');window.renderRoosterEditor()" style="font-size:11px;padding:5px 8px;border-radius:6px;${isSluit?'opacity:0.4':''}" title="Zet op Sluit">🔒</button>
         <button onclick="removeShift('${day.key}',${idx})" style="font-size:13px;padding:6px 8px;color:var(--rood);">✕</button>
       </div>`;
     });
