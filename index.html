@@ -1393,6 +1393,12 @@ function renderOnderhoud() {
   onderhoudData.forEach((sectie, si) => {
     const sKey = 'o' + si;
     const collapsed = collapsedSections[sKey];
+    const aanp = (lijstenAanpassingen['onderhoud'] || {})[sectie.sectie] || { verborgen: [], extra: [] };
+    const baseTaken = sectie.taken.filter(t => !(aanp.verborgen || []).includes(t.naam));
+    const extraTaken = (aanp.extra || []).map(naam => ({ naam, freq: '', badge: 'badge-maandelijks', dagen: 30 }));
+    const alleTaken = [...baseTaken, ...extraTaken];
+
+    if (alleTaken.length === 0) return;
 
     const header = document.createElement('div');
     header.className = 'section-header' + (collapsed ? ' collapsed' : '');
@@ -1403,7 +1409,7 @@ function renderOnderhoud() {
     const list = document.createElement('div');
     list.className = 'task-list' + (collapsed ? ' collapsed' : '');
 
-    sectie.taken.forEach((taak, ti) => {
+    alleTaken.forEach((taak, ti) => {
       const key = 'o' + si + '_' + ti;
       const state = onderhoudState[key];
       const isDone = state && state.done;
@@ -1416,7 +1422,7 @@ function renderOnderhoud() {
           ${taak.naam}
           ${lastDate ? `<span class="task-sub">Laatste controle: ${lastDate}</span>` : ''}
         </div>
-        <span class="onderhoud-badge ${taak.badge}">${taak.freq}</span>`;
+        ${taak.badge ? `<span class="onderhoud-badge ${taak.badge}">${taak.freq}</span>` : ''}`;
       item.onclick = () => {
         const wasDone = onderhoudState[key] && onderhoudState[key].done;
         onderhoudState[key] = { done: !wasDone, datum: !wasDone ? new Date().toISOString() : null };
@@ -1612,6 +1618,13 @@ function renderBeheer() {
   beheerTakenData.forEach((sectie, si) => {
     const sKey = 'b' + si;
     const collapsed = collapsedSections[sKey];
+    const aanp = (lijstenAanpassingen['beheer'] || {})[sectie.sectie] || { verborgen: [], extra: [] };
+    const alleTaken = [
+      ...sectie.taken.filter(t => !(aanp.verborgen || []).includes(t.naam)),
+      ...(aanp.extra || []).map(naam => ({ naam, freq: '' }))
+    ];
+
+    if (alleTaken.length === 0) return;
 
     const header = document.createElement('div');
     header.className = 'section-header' + (collapsed ? ' collapsed' : '');
@@ -1622,15 +1635,14 @@ function renderBeheer() {
     const list = document.createElement('div');
     list.className = 'task-list' + (collapsed ? ' collapsed' : '');
 
-    sectie.taken.forEach((taak, ti) => {
+    alleTaken.forEach((taak, ti) => {
       const key = 'b' + si + '_' + ti;
       const isDone = !!beheerState[key];
       const item = document.createElement('div');
       item.className = 'task-item' + (isDone ? ' done' : '');
       item.innerHTML = `
         <div class="task-check">${isDone ? '✓' : ''}</div>
-        <div class="task-label">${taak.naam}</div>
-        <span class="onderhoud-badge badge-maandelijks" style="display:none">${taak.freq}</span>`;
+        <div class="task-label">${taak.naam}</div>`;
       item.onclick = () => {
         beheerState[key] = !beheerState[key];
         fbSet('beheer_state', beheerState);
@@ -1729,6 +1741,8 @@ function getLijstData(lijstNaam) {
   if (lijstNaam === 'dagelijks') return dagelijksTakenData.map(s => ({ sectie: s.sectie, taken: s.taken }));
   if (lijstNaam === 'sportvelden') return sportveldTakenData.map(s => ({ sectie: s.sectie, taken: s.taken }));
   if (lijstNaam === 'remco') return remcoTakenData.map(s => ({ sectie: s.sectie, taken: s.taken.map(t => t.naam) }));
+  if (lijstNaam === 'onderhoud') return onderhoudData.map(s => ({ sectie: s.sectie, taken: s.taken.map(t => t.naam) }));
+  if (lijstNaam === 'beheer') return beheerTakenData.map(s => ({ sectie: s.sectie, taken: s.taken.map(t => t.naam) }));
   return [];
 }
 
@@ -1737,9 +1751,11 @@ let activeLijst = 'dagelijks';
 function renderLijstenBeheer() {
   const container = document.getElementById('lijstenBeheer');
   const lijsten = [
-    { key: 'dagelijks', label: '📋 Dagelijkse lijst' },
+    { key: 'dagelijks', label: '📋 Dagelijks' },
     { key: 'sportvelden', label: '🏟️ Sportvelden' },
-    { key: 'remco', label: '📅 Remco weekplanning' }
+    { key: 'remco', label: '📅 Remco weekplanning' },
+    { key: 'onderhoud', label: '🔧 Onderhoud' },
+    { key: 'beheer', label: '⚙️ Beheer' }
   ];
 
   let html = `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
