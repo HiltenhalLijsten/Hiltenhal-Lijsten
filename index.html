@@ -1054,7 +1054,7 @@ function getThisWeekKey() {
   return monday.toISOString().split('T')[0];
 }
 
-async function populateNaamDropdowns() {
+function populateNaamDropdowns() {
   const opties = MEDEWERKERS.map(n => `<option value="${n}">${n}</option>`).join('');
   ['invullerNaam', 'sportveldNaam'].forEach(id => {
     const el = document.getElementById(id);
@@ -1062,7 +1062,7 @@ async function populateNaamDropdowns() {
   });
 }
 
-function init() {
+async function init() {
   document.getElementById('headerDate').textContent =
     new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 
