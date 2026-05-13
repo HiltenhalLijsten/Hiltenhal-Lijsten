@@ -439,7 +439,9 @@
     <h3>✍️ Lijst afronden</h3>
     <div class="form-row">
       <label>Ingevuld door</label>
-      <input type="text" id="invullerNaam" placeholder="Jouw naam...">
+      <select id="invullerNaam" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
+        <option value="">Kies je naam...</option>
+      </select>
     </div>
     <div class="form-row">
       <label>Opmerkingen (optioneel)</label>
@@ -470,7 +472,7 @@
       <button id="rbtn-roosterMaken" onclick="showRemcoSection('roosterMaken')" style="font-size:13px;padding:6px 14px;border-radius:6px;">🗓️ Rooster maken</button>
       <button id="rbtn-afval" onclick="showRemcoSection('afval')" style="font-size:13px;padding:6px 14px;border-radius:6px;">🗑️ Afval</button>
       <button id="rbtn-beheer" onclick="showRemcoSection('beheer')" style="font-size:13px;padding:6px 14px;border-radius:6px;">⚙️ Beheer</button>
-      <button id="rbtn-lijsten" onclick="showRemcoSection('lijsten')" style="font-size:13px;padding:6px 14px;border-radius:6px;">✏️ Lijsten</button>
+      <button id="rbtn-instellingen" onclick="showRemcoSection('instellingen')" style="font-size:13px;padding:6px 14px;border-radius:6px;">🔧 Instellingen</button>
       <button onclick="logoutRemco()" style="font-size:13px;padding:6px 14px;border-radius:6px;margin-left:auto;color:var(--rood);">Uitloggen</button>
     </div>
     <div id="rsec-weekplan">
@@ -504,8 +506,17 @@
     <div id="rsec-afval" style="display:none;">
       <div id="afvalCalendar"></div>
     </div>
-    <div id="rsec-lijsten" style="display:none;">
-      <div id="lijstenBeheer"></div>
+    <div id="rsec-instellingen" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--grijs-mid);padding-bottom:12px;">
+        <button id="ibtn-lijsten" onclick="showInstellingenSec('lijsten')" style="font-size:13px;padding:6px 14px;background:var(--donker);color:var(--wit);border:none;border-radius:6px;">📋 Lijsten</button>
+        <button id="ibtn-appbeheer" onclick="showInstellingenSec('appbeheer')" style="font-size:13px;padding:6px 14px;border-radius:6px;">📱 App beheer</button>
+      </div>
+      <div id="isec-lijsten">
+        <div id="lijstenBeheer"></div>
+      </div>
+      <div id="isec-appbeheer" style="display:none;">
+        <div id="appBeheer"></div>
+      </div>
     </div>
     <div id="rsec-beheer" style="display:none;">
 <div id="beheerTasks"></div>
@@ -520,7 +531,9 @@
     <h3>✍️ Lijst afronden</h3>
     <div class="form-row">
       <label>Ingevuld door</label>
-      <input type="text" id="sportveldNaam" placeholder="Jouw naam...">
+      <select id="sportveldNaam" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
+        <option value="">Kies je naam...</option>
+      </select>
     </div>
     <div class="form-row">
       <label>Opmerkingen (optioneel)</label>
@@ -1041,12 +1054,20 @@ function getThisWeekKey() {
   return monday.toISOString().split('T')[0];
 }
 
-async function init() {
+async function populateNaamDropdowns() {
+  const opties = MEDEWERKERS.map(n => `<option value="${n}">${n}</option>`).join('');
+  ['invullerNaam', 'sportveldNaam'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">Kies je naam...</option>' + opties;
+  });
+}
+
+function init() {
   document.getElementById('headerDate').textContent =
     new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 
   try {
-    const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster, savedAfval, savedLijsten] = await Promise.all([
+    const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster, savedAfval, savedLijsten, savedNamen, savedPin] = await Promise.all([
       fbGet('dagelijks_' + getTodayKey()),
       fbGet('sportveld_' + getTodayKey()),
       fbGet('onderhoud_state'),
@@ -1054,7 +1075,9 @@ async function init() {
       fbGet('beheer_state'),
       fbGet('rooster_data'),
     fbGet('afval_data'),
-    fbGet('lijsten_aanpassingen')
+    fbGet('lijsten_aanpassingen'),
+    fbGet('rooster_namen'),
+    fbGet('remco_pin')
     ]);
 
     if (savedDag) dagelijksState = savedDag;
@@ -1065,6 +1088,9 @@ async function init() {
     if (savedRooster) roosterData = savedRooster;
     if (savedAfval) afvalData = savedAfval;
     if (savedLijsten) lijstenAanpassingen = savedLijsten;
+    if (savedNamen) MEDEWERKERS.splice(0, MEDEWERKERS.length, ...savedNamen);
+    if (savedPin && savedPin.pin) sessionStorage.setItem('remcoPin', savedPin.pin);
+    populateNaamDropdowns();
   } catch(e) {
     console.error('Firebase laden mislukt, app start met lege staat:', e);
   }
@@ -1209,6 +1235,37 @@ function renderDagelijks() {
         fbSet('dagelijks_' + getTodayKey(), dagelijksState);
         renderDagelijks();
       };
+      list.appendChild(item);
+    });
+    container.appendChild(list);
+  });
+
+  // Extra secties toegevoegd door Remco
+  const dagAanp = lijstenAanpassingen['dagelijks'] || {};
+  Object.entries(dagAanp).filter(([naam, val]) => val.isNieuwe && (val.extra || []).length > 0).forEach(([sectieNaam, sectieData], xi) => {
+    const sKey = 'dex' + xi;
+    const collapsed = collapsedSections[sKey];
+    let sectieDone = 0;
+    const extra = sectieData.extra || [];
+    extra.forEach((taak, ti) => { if (dagelijksState['dex' + xi + '_' + ti]) { done++; sectieDone++; } total++; });
+
+    const header = document.createElement('div');
+    header.className = 'section-header' + (collapsed ? ' collapsed' : '');
+    header.innerHTML = `<span class="section-icon">➕</span>${sectieNaam}
+      <span class="section-count-badge">${sectieDone}/${extra.length}</span>
+      <span class="section-toggle">▼</span>`;
+    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderDagelijks(); };
+    container.appendChild(header);
+
+    const list = document.createElement('div');
+    list.className = 'task-list' + (collapsed ? ' collapsed' : '');
+    extra.forEach((taak, ti) => {
+      const key = 'dex' + xi + '_' + ti;
+      const isDone = !!dagelijksState[key];
+      const item = document.createElement('div');
+      item.className = 'task-item' + (isDone ? ' done' : '');
+      item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label">${taak}</div>`;
+      item.onclick = () => { dagelijksState[key] = !dagelijksState[key]; fbSet('dagelijks_' + getTodayKey(), dagelijksState); renderDagelijks(); };
       list.appendChild(item);
     });
     container.appendChild(list);
@@ -1681,15 +1738,13 @@ window.openRemco = function openRemco(el) {
 
 window.checkPin = function checkPin() {
   const pin = document.getElementById('pincodeInput').value;
-  if (pin === '5081') {
+  const opgeslagenPin = sessionStorage.getItem('remcoPin') || '5081';
+  if (pin === opgeslagenPin) {
     sessionStorage.setItem('remcoUnlocked', '1');
     document.getElementById('pinScreen').style.display = 'none';
     document.getElementById('remcoContent').style.display = 'block';
-    // Reset remco state for current week to avoid showing old data
-    fbGet('remco_' + getThisWeekKey()).then(saved => {
-      remcoState = saved || {};
-      renderRemco();
-    });
+    fbGet('remco_pin').then(saved => { if (saved && saved.pin) sessionStorage.setItem('remcoPin', saved.pin); });
+    fbGet('remco_' + getThisWeekKey()).then(saved => { remcoState = saved || {}; renderRemco(); });
     renderBeheer();
     window.renderRoosterEditor();
   } else {
@@ -1706,7 +1761,7 @@ window.logoutRemco = function logoutRemco() {
 }
 
 window.showRemcoSection = function showRemcoSection(sec) {
-  ['weekplan', 'roosterMaken', 'afval', 'lijsten', 'beheer'].forEach(s => {
+  ['weekplan', 'roosterMaken', 'afval', 'instellingen', 'beheer'].forEach(s => {
     const el = document.getElementById('rsec-' + s);
     if (el) el.style.display = s === sec ? 'block' : 'none';
     const btn = document.getElementById('rbtn-' + s);
@@ -1717,7 +1772,136 @@ window.showRemcoSection = function showRemcoSection(sec) {
     }
   });
   if (sec === 'afval') renderAfvalCalendar();
+  if (sec === 'instellingen') { renderLijstenBeheer(); }
+}
+
+window.showInstellingenSec = function showInstellingenSec(sec) {
+  ['lijsten', 'appbeheer'].forEach(s => {
+    const el = document.getElementById('isec-' + s);
+    if (el) el.style.display = s === sec ? 'block' : 'none';
+    const btn = document.getElementById('ibtn-' + s);
+    if (btn) {
+      btn.style.background = s === sec ? 'var(--donker)' : '';
+      btn.style.color = s === sec ? 'var(--wit)' : '';
+      btn.style.border = s === sec ? 'none' : '';
+    }
+  });
+  if (sec === 'appbeheer') renderAppBeheer();
   if (sec === 'lijsten') renderLijstenBeheer();
+}
+
+// ===== APP BEHEER =====
+function renderAppBeheer() {
+  const container = document.getElementById('appBeheer');
+  const namen = JSON.parse(localStorage.getItem('rooster_namen') || 'null') || [...MEDEWERKERS];
+
+  let html = `
+  <div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:14px;margin-bottom:12px;">
+    <p style="font-size:14px;font-weight:500;margin:0 0 12px;">👥 Namen rooster dropdown</p>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+      ${namen.map((naam, i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--grijs-mid);">
+          <span style="font-size:13px;flex:1;">${naam}</span>
+          <button onclick="verwijderNaam(${i})" style="font-size:11px;padding:4px 8px;color:var(--rood);background:none;border:none;cursor:pointer;">✕ Verwijderen</button>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="nieuweNaamInput" placeholder="Nieuwe naam..." style="flex:1;font-size:13px;padding:6px 8px;">
+      <button onclick="voegNaamToe()" style="font-size:13px;padding:6px 12px;background:var(--goud);color:var(--donker);border:none;border-radius:6px;font-weight:500;">+ Toevoegen</button>
+    </div>
+  </div>
+
+  <div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:14px;margin-bottom:12px;">
+    <p style="font-size:14px;font-weight:500;margin:0 0 12px;">🔒 Pincode wijzigen</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="password" id="huidigePinInput" maxlength="4" placeholder="Huidige pincode" style="flex:1;min-width:120px;font-size:14px;padding:8px;text-align:center;letter-spacing:4px;">
+      <input type="password" id="nieuwePinInput" maxlength="4" placeholder="Nieuwe pincode" style="flex:1;min-width:120px;font-size:14px;padding:8px;text-align:center;letter-spacing:4px;">
+      <button onclick="wijzigPin()" style="font-size:13px;padding:8px 14px;background:var(--donker);color:var(--wit);border:none;border-radius:6px;">Opslaan</button>
+    </div>
+    <p id="pinWijzigMsg" style="font-size:12px;margin:8px 0 0;display:none;"></p>
+  </div>
+
+  <div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:14px;">
+    <p style="font-size:14px;font-weight:500;margin:0 0 12px;">⏱️ Onderhoud intervallen</p>
+    ${onderhoudData.map((sectie, si) => sectie.taken.map((taak, ti) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--grijs-mid);flex-wrap:wrap;">
+        <span style="font-size:12px;flex:1;min-width:150px;">${taak.naam}</span>
+        <select onchange="updateInterval('o${si}_${ti}',this.value)" style="font-size:12px;padding:4px 8px;">
+          <option value="7" ${taak.dagen==7?'selected':''}>Wekelijks</option>
+          <option value="30" ${taak.dagen==30?'selected':''}>Maandelijks</option>
+          <option value="180" ${taak.dagen==180?'selected':''}>Halfjaarlijks</option>
+          <option value="365" ${taak.dagen==365?'selected':''}>Jaarlijks</option>
+        </select>
+      </div>`).join('')).join('')}
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+window.voegNaamToe = async function() {
+  const input = document.getElementById('nieuweNaamInput');
+  if (!input || !input.value.trim()) { showToast('Vul een naam in!'); return; }
+  const namen = JSON.parse(localStorage.getItem('rooster_namen') || 'null') || [...MEDEWERKERS];
+  namen.push(input.value.trim());
+  localStorage.setItem('rooster_namen', JSON.stringify(namen));
+  await fbSet('rooster_namen', namen);
+  input.value = '';
+  MEDEWERKERS.splice(0, MEDEWERKERS.length, ...namen);
+  renderAppBeheer();
+  populateNaamDropdowns();
+  showToast('Naam toegevoegd!');
+}
+
+window.verwijderNaam = async function(idx) {
+  const namen = JSON.parse(localStorage.getItem('rooster_namen') || 'null') || [...MEDEWERKERS];
+  namen.splice(idx, 1);
+  localStorage.setItem('rooster_namen', JSON.stringify(namen));
+  await fbSet('rooster_namen', namen);
+  MEDEWERKERS.splice(0, MEDEWERKERS.length, ...namen);
+  renderAppBeheer();
+  populateNaamDropdowns();
+  showToast('Naam verwijderd!');
+}
+
+window.wijzigPin = function() {
+  const huidig = document.getElementById('huidigePinInput').value;
+  const nieuw = document.getElementById('nieuwePinInput').value;
+  const msg = document.getElementById('pinWijzigMsg');
+  const opgeslagenPin = sessionStorage.getItem('remcoPin') || '5081';
+  if (huidig !== opgeslagenPin) {
+    msg.textContent = '❌ Huidige pincode klopt niet!';
+    msg.style.color = 'var(--rood)';
+    msg.style.display = 'block';
+    return;
+  }
+  if (nieuw.length !== 4 || isNaN(nieuw)) {
+    msg.textContent = '❌ Pincode moet 4 cijfers zijn!';
+    msg.style.color = 'var(--rood)';
+    msg.style.display = 'block';
+    return;
+  }
+  sessionStorage.setItem('remcoPin', nieuw);
+  fbSet('remco_pin', { pin: nieuw });
+  msg.textContent = '✓ Pincode gewijzigd!';
+  msg.style.color = 'var(--groen)';
+  msg.style.display = 'block';
+  document.getElementById('huidigePinInput').value = '';
+  document.getElementById('nieuwePinInput').value = '';
+}
+
+window.updateInterval = function(key, dagen) {
+  // Find the taak in onderhoudData and update
+  onderhoudData.forEach((sectie, si) => {
+    sectie.taken.forEach((taak, ti) => {
+      if (`o${si}_${ti}` === key) {
+        taak.dagen = parseInt(dagen);
+        taak.freq = dagen == 7 ? 'Wekelijks' : dagen == 30 ? 'Maandelijks' : dagen == 180 ? 'Halfjaarlijks' : 'Jaarlijks';
+        taak.badge = dagen == 7 ? 'badge-maandelijks' : dagen == 30 ? 'badge-maandelijks' : dagen == 180 ? 'badge-halfjaarlijks' : 'badge-jaarlijks';
+      }
+    });
+  });
+  fbSet('onderhoud_intervallen', onderhoudData.map(s => s.taken.map(t => ({ dagen: t.dagen, freq: t.freq }))));
+  showToast('Interval bijgewerkt!');
 }
 
 // ===== LIJSTEN BEHEER =====
@@ -1765,7 +1949,13 @@ function renderLijstenBeheer() {
   const data = getLijstData(activeLijst);
   const aanp = lijstenAanpassingen[activeLijst] || {};
 
-  data.forEach(sectie => {
+  // Combine base sections + extra sections added by Remco
+  const extraSecties = Object.entries(aanp)
+    .filter(([naam, val]) => val.isNieuwe)
+    .map(([naam]) => ({ sectie: naam, taken: [] }));
+  const alleSecties = [...data, ...extraSecties];
+
+  alleSecties.forEach(sectie => {
     const sectieAanp = aanp[sectie.sectie] || { verborgen: [], extra: [] };
     const alleTaken = [...sectie.taken, ...(sectieAanp.extra || [])];
 
@@ -1791,7 +1981,33 @@ function renderLijstenBeheer() {
     </div>`;
   });
 
+  // Nieuwe sectie toevoegen
+  html += `<div style="background:var(--wit);border:1.5px dashed var(--grijs-mid);border-radius:10px;padding:14px;margin-top:8px;">
+    <p style="font-size:13px;font-weight:500;margin:0 0 10px;color:var(--grijs-tekst);">+ Nieuwe sectie toevoegen</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="text" id="nieuweSectieNaam_${activeLijst}" placeholder="Naam sectie (bijv. Garage)" style="flex:1;min-width:150px;font-size:13px;padding:6px 8px;">
+      <button onclick="voegSectieToe('${activeLijst}')" style="font-size:13px;padding:6px 12px;background:var(--donker);color:var(--wit);border:none;border-radius:6px;font-weight:500;">+ Sectie aanmaken</button>
+    </div>
+  </div>`;
+
   container.innerHTML = html;
+}
+
+window.voegSectieToe = async function(lijst) {
+  const input = document.getElementById(`nieuweSectieNaam_${lijst}`);
+  if (!input || !input.value.trim()) { showToast('Vul een sectienaam in!'); return; }
+  const naam = input.value.trim();
+  if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
+  if (lijstenAanpassingen[lijst][naam]) { showToast('Sectie bestaat al!'); return; }
+  lijstenAanpassingen[lijst][naam] = { verborgen: [], extra: [], isNieuwe: true };
+  input.value = '';
+  await saveLijstenAanpassingen();
+  renderLijstenBeheer();
+  renderDagelijks();
+  renderSportvelden();
+  renderOnderhoud();
+  renderBeheer();
+  showToast('Sectie aangemaakt!');
 }
 
 window.setActiveLijst = function(lijst) {
