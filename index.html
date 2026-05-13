@@ -1452,7 +1452,12 @@ function renderOnderhoud() {
     const collapsed = collapsedSections[sKey];
     const aanp = (lijstenAanpassingen['onderhoud'] || {})[sectie.sectie] || { verborgen: [], extra: [] };
     const baseTaken = sectie.taken.filter(t => !(aanp.verborgen || []).includes(t.naam));
-    const extraTaken = (aanp.extra || []).map(naam => ({ naam, freq: '', badge: 'badge-maandelijks', dagen: 30 }));
+    const extraTaken = (aanp.extra || []).map((naam, ei) => {
+      const savedDagen = (aanp.intervallen || {})[ei] || 30;
+      const freq = savedDagen == 7 ? 'Wekelijks' : savedDagen == 30 ? 'Maandelijks' : savedDagen == 180 ? 'Halfjaarlijks' : 'Jaarlijks';
+      const badge = savedDagen <= 30 ? 'badge-maandelijks' : savedDagen == 180 ? 'badge-halfjaarlijks' : 'badge-jaarlijks';
+      return { naam, freq, badge, dagen: savedDagen };
+    });
     const alleTaken = [...baseTaken, ...extraTaken];
 
     if (alleTaken.length === 0) return;
@@ -1833,6 +1838,18 @@ function renderAppBeheer() {
           <option value="365" ${taak.dagen==365?'selected':''}>Jaarlijks</option>
         </select>
       </div>`).join('')).join('')}
+    ${Object.entries(lijstenAanpassingen['onderhoud'] || {}).map(([sectieNaam, sectieData]) =>
+      (sectieData.extra || []).map((taakNaam, ei) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--grijs-mid);flex-wrap:wrap;">
+        <span style="font-size:12px;flex:1;min-width:150px;">${taakNaam} <span style="font-size:10px;background:#DBEAFE;color:#1E40AF;padding:1px 5px;border-radius:8px;">nieuw</span></span>
+        <select onchange="updateIntervalExtra('onderhoud','${sectieNaam}',${ei},this.value)" style="font-size:12px;padding:4px 8px;">
+          <option value="7">Wekelijks</option>
+          <option value="30" selected>Maandelijks</option>
+          <option value="180">Halfjaarlijks</option>
+          <option value="365">Jaarlijks</option>
+        </select>
+      </div>`).join('')
+    ).join('')}
   </div>`;
 
   container.innerHTML = html;
@@ -1887,6 +1904,15 @@ window.wijzigPin = function() {
   msg.style.display = 'block';
   document.getElementById('huidigePinInput').value = '';
   document.getElementById('nieuwePinInput').value = '';
+}
+
+window.updateIntervalExtra = async function(lijst, sectie, idx, dagen) {
+  if (!lijstenAanpassingen[lijst]) return;
+  if (!lijstenAanpassingen[lijst][sectie]) return;
+  if (!lijstenAanpassingen[lijst][sectie].intervallen) lijstenAanpassingen[lijst][sectie].intervallen = {};
+  lijstenAanpassingen[lijst][sectie].intervallen[idx] = parseInt(dagen);
+  await saveLijstenAanpassingen();
+  showToast('Interval bijgewerkt!');
 }
 
 window.updateInterval = function(key, dagen) {
