@@ -1305,8 +1305,8 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
 
     const sKey = lijstNaam + si;
     const collapsed = collapsedSections[sKey];
-    const displayNaam = aanp.hernoemd || sectie.sectie;
     const aanp = (lijstenAanpassingen[lijstNaam] || {})[sectie.sectie] || { verborgen: [], extra: [] };
+    const displayNaam = aanp.hernoemd || sectie.sectie;
     const seizoen = aanp.seizoen || sectie.seizoen;
     if (seizoen && !isSeizoen(seizoen.van, seizoen.tot)) return;
     const hernoemdTaken = aanp.hernoemdTaken || {};
