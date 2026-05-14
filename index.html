@@ -1305,8 +1305,13 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
 
     const sKey = lijstNaam + si;
     const collapsed = collapsedSections[sKey];
+    const displayNaam = aanp.hernoemd || sectie.sectie;
     const aanp = (lijstenAanpassingen[lijstNaam] || {})[sectie.sectie] || { verborgen: [], extra: [] };
-    const alleTaken = [...sectie.taken.filter(t => !(aanp.verborgen || []).includes(t)), ...(aanp.extra || [])];
+    const seizoen = aanp.seizoen || sectie.seizoen;
+    if (seizoen && !isSeizoen(seizoen.van, seizoen.tot)) return;
+    const hernoemdTaken = aanp.hernoemdTaken || {};
+    const alleTaken = [...sectie.taken.filter(t => !(aanp.verborgen || []).includes(t)), ...(aanp.extra || [])]
+      .map(t => hernoemdTaken[t] || t);
     let sectieDone = 0;
 
     alleTaken.forEach((taak, ti) => {
@@ -1319,7 +1324,7 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
 
     const header = document.createElement('div');
     header.className = 'section-header' + (collapsed ? ' collapsed' : '');
-    header.innerHTML = `<span class="section-icon">${sectie.icon}</span>${sectie.sectie}
+    header.innerHTML = `<span class="section-icon">${sectie.icon}</span>${displayNaam}
       <span class="section-count-badge">${sectieDone}/${alleTaken.length}</span>
       <span class="section-progress">${Math.round(sectieDone/alleTaken.length*100)}%</span>
       <span class="section-toggle">▼</span>`;
@@ -2235,6 +2240,8 @@ function renderLijstenBeheer() {
     { key: 'beheer', label: '⚙️ Beheer' }
   ];
 
+  const MAANDEN = ['Jan','Feb','Mrt','Apr','Mei','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
+
   let html = `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
     ${lijsten.map(l => `<button onclick="setActiveLijst('${l.key}')" id="lbtn-${l.key}" style="font-size:13px;padding:6px 14px;border-radius:20px;${activeLijst===l.key ? 'background:var(--donker);color:var(--wit);border:none;' : ''}">${l.label}</button>`).join('')}
   </div>`;
@@ -2242,52 +2249,145 @@ function renderLijstenBeheer() {
   const data = getLijstData(activeLijst);
   const aanp = lijstenAanpassingen[activeLijst] || {};
 
-  // Combine base sections + extra sections added by Remco
   const extraSecties = Object.entries(aanp)
     .filter(([naam, val]) => val.isNieuwe)
     .map(([naam]) => ({ sectie: naam, taken: [] }));
   const alleSecties = [...data, ...extraSecties];
 
-  alleSecties.forEach(sectie => {
+  alleSecties.forEach((sectie, si) => {
     const sectieAanp = aanp[sectie.sectie] || { verborgen: [], extra: [] };
     const alleTaken = [...sectie.taken, ...(sectieAanp.extra || [])];
     const isNieuwe = sectieAanp.isNieuwe;
+    const sectieNaamKey = sectie.sectie.replace(/'/g,"\\'").replace(/\s/g,'_');
+    const huidigeNaam = sectieAanp.hernoemd || sectie.sectie;
+    
+    // Seizoen info
+    const origSectie = data.find(s => s.sectie === sectie.sectie);
+    const heeftSeizoen = origSectie?.seizoen;
+    const seizoenAanp = sectieAanp.seizoen || origSectie?.seizoen;
 
     html += `<div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:12px;margin-bottom:10px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <p style="font-size:13px;font-weight:500;margin:0;color:var(--donker);">${sectie.sectie}</p>
-        ${isNieuwe ? `<button onclick="verwijderSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' )" style="font-size:11px;padding:4px 8px;color:var(--rood);background:#FEE2E2;border:none;border-radius:6px;">🗑️ Verwijderen</button>` : ''}
-      </div>`;
+      
+      <!-- Sectie header met naam bewerken -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <input type="text" value="${huidigeNaam}" id="sectienaam_${si}" style="font-size:13px;font-weight:500;flex:1;min-width:120px;padding:4px 8px;border:1px solid var(--grijs-mid);border-radius:6px;" onchange="hernoemSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',this.value)">
+        <button onclick="verplaatsSectie('${activeLijst}',${si},-1)" style="font-size:12px;padding:4px 8px;border-radius:6px;" title="Omhoog">↑</button>
+        <button onclick="verplaatsSectie('${activeLijst}',${si},1)" style="font-size:12px;padding:4px 8px;border-radius:6px;" title="Omlaag">↓</button>
+        ${isNieuwe ? `<button onclick="verwijderSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' )" style="font-size:11px;padding:4px 8px;color:var(--rood);background:#FEE2E2;border:none;border-radius:6px;">🗑️</button>` : ''}
+      </div>
 
-    alleTaken.forEach(taak => {
-      const taakNaam = typeof taak === 'string' ? taak : taak.naam || taak;
-      const isVerborgen = (sectieAanp.verborgen || []).includes(taakNaam);
-      const isExtra = (sectieAanp.extra || []).includes(taakNaam);
+      <!-- Seizoen instelling -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--grijs-tekst);">Seizoen:</span>
+        <select onchange="updateSeizoen('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','van',this.value)" style="font-size:12px;padding:3px 6px;">
+          <option value="">Altijd</option>
+          ${MAANDEN.map((m,i) => `<option value="${i+1}" ${seizoenAanp?.van==i+1?'selected':''}>${m}</option>`).join('')}
+        </select>
+        ${seizoenAanp?.van ? `<span style="font-size:12px;color:var(--grijs-tekst);">t/m</span>
+        <select onchange="updateSeizoen('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','tot',this.value)" style="font-size:12px;padding:3px 6px;">
+          ${MAANDEN.map((m,i) => `<option value="${i+1}" ${seizoenAanp?.tot==i+1?'selected':''}>${m}</option>`).join('')}
+        </select>` : ''}
+      </div>
 
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--grijs-mid);">
-        <span style="font-size:13px;flex:1;color:${isVerborgen ? 'var(--grijs-tekst)' : 'var(--donker)'};${isVerborgen ? 'text-decoration:line-through;' : ''}">${taakNaam}${isExtra ? ' <span style="font-size:10px;background:#DBEAFE;color:#1E40AF;padding:1px 5px;border-radius:8px;">nieuw</span>' : ''}</span>
-        <button onclick="toggleTaakZichtbaar('${activeLijst}','${sectie.sectie}','${taakNaam.replace(/'/g,"\\'")}',${isVerborgen})" style="font-size:11px;padding:4px 8px;border-radius:6px;background:${isVerborgen ? 'var(--groen-licht)' : '#FEE2E2'};color:${isVerborgen ? 'var(--groen)' : 'var(--rood)'};border:none;">${isVerborgen ? '👁️ Tonen' : '🚫 Verbergen'}</button>
-        ${isExtra ? `<button onclick="verwijderExtraTaak('${activeLijst}','${sectie.sectie}','${taakNaam.replace(/'/g,"\\'")}') " style="font-size:11px;padding:4px 8px;border-radius:6px;color:var(--rood);background:none;border:none;">✕</button>` : ''}
-      </div>`;
-    });
+      <!-- Taken lijst -->
+      ${alleTaken.map((taak, ti) => {
+        const taakNaam = typeof taak === 'string' ? taak : taak.naam || taak;
+        const isVerborgen = (sectieAanp.verborgen || []).includes(taakNaam);
+        const isExtra = (sectieAanp.extra || []).includes(taakNaam);
+        const hernoemdNaam = (sectieAanp.hernoemdTaken || {})[taakNaam] || taakNaam;
+        return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--grijs-mid);flex-wrap:wrap;">
+          <input type="text" value="${hernoemdNaam}" style="font-size:12px;flex:1;min-width:100px;padding:3px 6px;border:1px solid var(--grijs-mid);border-radius:5px;${isVerborgen?'opacity:0.4;text-decoration:line-through;':''}" onchange="hernoemTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',this.value)">
+          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},-1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omhoog">↑</button>
+          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omlaag">↓</button>
+          <button onclick="toggleTaakZichtbaar('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',${isVerborgen})" style="font-size:11px;padding:3px 7px;border-radius:5px;background:${isVerborgen?'var(--groen-licht)':'#FEE2E2'};color:${isVerborgen?'var(--groen)':'var(--rood)'};border:none;">${isVerborgen?'👁️':'🚫'}</button>
+          ${isExtra ? `<button onclick="verwijderExtraTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}') " style="font-size:11px;padding:3px 6px;border-radius:5px;color:var(--rood);background:none;border:none;">✕</button>` : ''}
+        </div>`;
+      }).join('')}
 
-    html += `<div style="display:flex;gap:8px;margin-top:8px;">
-      <input type="text" id="nieuw_${activeLijst}_${sectie.sectie.replace(/\s/g,'_')}" placeholder="Nieuwe taak toevoegen..." style="flex:1;font-size:13px;padding:6px 8px;">
-      <button onclick="voegTaakToe('${activeLijst}','${sectie.sectie}')" style="font-size:13px;padding:6px 12px;background:var(--goud);color:var(--donker);border:none;border-radius:6px;font-weight:500;">+ Toevoegen</button>
-    </div>
+      <!-- Nieuwe taak -->
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <input type="text" id="nieuw_${activeLijst}_${sectieNaamKey}" placeholder="Nieuwe taak toevoegen..." style="flex:1;font-size:13px;padding:6px 8px;">
+        <button onclick="voegTaakToe('${activeLijst}','${sectie.sectie}')" style="font-size:13px;padding:6px 12px;background:var(--goud);color:var(--donker);border:none;border-radius:6px;font-weight:500;">+</button>
+      </div>
     </div>`;
   });
 
-  // Nieuwe sectie toevoegen
   html += `<div style="background:var(--wit);border:1.5px dashed var(--grijs-mid);border-radius:10px;padding:14px;margin-top:8px;">
     <p style="font-size:13px;font-weight:500;margin:0 0 10px;color:var(--grijs-tekst);">+ Nieuwe sectie toevoegen</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <input type="text" id="nieuweSectieNaam_${activeLijst}" placeholder="Naam sectie (bijv. Garage)" style="flex:1;min-width:150px;font-size:13px;padding:6px 8px;">
-      <button onclick="voegSectieToe('${activeLijst}')" style="font-size:13px;padding:6px 12px;background:var(--donker);color:var(--wit);border:none;border-radius:6px;font-weight:500;">+ Sectie aanmaken</button>
+      <input type="text" id="nieuweSectieNaam_${activeLijst}" placeholder="Naam sectie..." style="flex:1;min-width:150px;font-size:13px;padding:6px 8px;">
+      <button onclick="voegSectieToe('${activeLijst}')" style="font-size:13px;padding:6px 12px;background:var(--donker);color:var(--wit);border:none;border-radius:6px;font-weight:500;">+ Aanmaken</button>
     </div>
   </div>`;
 
   container.innerHTML = html;
+}
+
+window.hernoemSectie = async function(lijst, oudNaam, nieuwNaam) {
+  if (!nieuwNaam.trim() || nieuwNaam === oudNaam) return;
+  if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
+  if (!lijstenAanpassingen[lijst][oudNaam]) lijstenAanpassingen[lijst][oudNaam] = { verborgen: [], extra: [] };
+  lijstenAanpassingen[lijst][oudNaam].hernoemd = nieuwNaam.trim();
+  await saveLijstenAanpassingen();
+  renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
+  showToast('Sectienaam gewijzigd!');
+}
+
+window.hernoemTaak = async function(lijst, sectie, oudNaam, nieuwNaam) {
+  if (!nieuwNaam.trim() || nieuwNaam === oudNaam) return;
+  if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
+  if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
+  if (!lijstenAanpassingen[lijst][sectie].hernoemdTaken) lijstenAanpassingen[lijst][sectie].hernoemdTaken = {};
+  lijstenAanpassingen[lijst][sectie].hernoemdTaken[oudNaam] = nieuwNaam.trim();
+  await saveLijstenAanpassingen();
+  renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
+  showToast('Taaknaam gewijzigd!');
+}
+
+window.verplaatsSectie = async function(lijst, idx, richting) {
+  if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
+  if (!lijstenAanpassingen[lijst]._volgorde) {
+    lijstenAanpassingen[lijst]._volgorde = getLijstData(lijst).map(s => s.sectie);
+  }
+  const volgorde = lijstenAanpassingen[lijst]._volgorde;
+  const nieuweIdx = idx + richting;
+  if (nieuweIdx < 0 || nieuweIdx >= volgorde.length) return;
+  [volgorde[idx], volgorde[nieuweIdx]] = [volgorde[nieuweIdx], volgorde[idx]];
+  await saveLijstenAanpassingen();
+  renderLijstenBeheer();
+  renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
+}
+
+window.verplaatsTaak = async function(lijst, sectie, idx, richting) {
+  if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
+  if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
+  if (!lijstenAanpassingen[lijst][sectie]._taakVolgorde) {
+    const data = getLijstData(lijst);
+    const s = data.find(s => s.sectie === sectie);
+    lijstenAanpassingen[lijst][sectie]._taakVolgorde = s ? [...s.taken] : [];
+  }
+  const volgorde = lijstenAanpassingen[lijst][sectie]._taakVolgorde;
+  const nieuweIdx = idx + richting;
+  if (nieuweIdx < 0 || nieuweIdx >= volgorde.length) return;
+  [volgorde[idx], volgorde[nieuweIdx]] = [volgorde[nieuweIdx], volgorde[idx]];
+  await saveLijstenAanpassingen();
+  renderLijstenBeheer();
+  renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
+}
+
+window.updateSeizoen = async function(lijst, sectie, veld, waarde) {
+  if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
+  if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
+  if (!lijstenAanpassingen[lijst][sectie].seizoen) lijstenAanpassingen[lijst][sectie].seizoen = {};
+  if (waarde === '') {
+    delete lijstenAanpassingen[lijst][sectie].seizoen;
+  } else {
+    lijstenAanpassingen[lijst][sectie].seizoen[veld] = parseInt(waarde);
+  }
+  await saveLijstenAanpassingen();
+  renderLijstenBeheer();
+  renderOpening(); renderSluit();
+  showToast('Seizoen bijgewerkt!');
 }
 
 window.verwijderSectie = async function(lijst, sectie) {
