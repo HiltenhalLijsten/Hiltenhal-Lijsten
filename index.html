@@ -416,7 +416,8 @@
 </header>
 
 <div class="tabs">
-  <div class="tab active" onclick="showTab('dagelijks', this)">📋 Dagelijks</div>
+  <div class="tab active" onclick="showTab('opening', this)">🌅 Openen</div>
+  <div class="tab" onclick="showTab('sluit', this)">🌙 Sluiten</div>
   <div class="tab" onclick="showTab('rooster', this)">📅 Rooster</div>
   <div class="tab" onclick="showTab('sportvelden', this)">🏟️ Sportvelden</div>
   <div class="tab" onclick="showTab('onderhoud', this)">🔧 Onderhoud</div>
@@ -424,19 +425,19 @@
   <div class="tab" onclick="openRemco(this)">🔒 Remco</div>
 </div>
 
-<!-- TAB 1: DAGELIJKS -->
-<div class="content active" id="tab-dagelijks">
+<!-- TAB 1: OPENING -->
+<div class="content active" id="tab-opening">
   <div id="onderhoudAlerts"></div>
   <div class="progress-label">
-    <span>Voortgang vandaag</span>
+    <span>Voortgang openen vandaag</span>
     <strong id="progressText">0 / 0 taken</strong>
   </div>
   <div class="progress-bar-wrap">
     <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
   </div>
-  <div id="dagelijksTasks"></div>
+  <div id="openingTasks"></div>
   <div class="submit-box">
-    <h3>✍️ Lijst afronden</h3>
+    <h3>🌅 Openen afronden</h3>
     <div class="form-row">
       <label>Ingevuld door</label>
       <select id="invullerNaam" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
@@ -448,6 +449,32 @@
       <textarea id="opmerkingen" rows="2" placeholder="Bijv. toilet buiten werking, extra gedweild..."></textarea>
     </div>
     <button class="btn-primary" id="submitBtn" onclick="submitDagelijks()" disabled>Lijst opslaan ✓</button>
+  </div>
+</div>
+
+<!-- TAB 2: SLUITING -->
+<div class="content" id="tab-sluit">
+  <div class="progress-label">
+    <span>Voortgang sluiten vandaag</span>
+    <strong id="sluitProgressText">0 / 0 taken</strong>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="sluitProgressBar" style="width:0%"></div>
+  </div>
+  <div id="sluitTasks"></div>
+  <div class="submit-box">
+    <h3>🌙 Sluiten afronden</h3>
+    <div class="form-row">
+      <label>Ingevuld door</label>
+      <select id="sluitNaam" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
+        <option value="">Kies je naam...</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Opmerkingen (optioneel)</label>
+      <textarea id="sluitOpmerkingen" rows="2" placeholder="Bijv. toilet buiten werking..."></textarea>
+    </div>
+    <button class="btn-primary" id="sluitSubmitBtn" onclick="submitSluit()" disabled>Lijst opslaan ✓</button>
   </div>
 </div>
 
@@ -553,7 +580,9 @@
   <div class="history-filter">
     <div class="form-row">
       <label>Zoek op naam</label>
-      <input type="text" id="filterNaam" placeholder="Naam..." oninput="renderHistorie()">
+      <select id="filterNaam" onchange="renderHistorie()" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
+        <option value="">Alle namen</option>
+      </select>
     </div>
     <div class="form-row">
       <label>Datum vanaf</label>
@@ -744,6 +773,155 @@ const dagelijksTakenData = [
     "Handdoekdispenser controleren",
     "Vloer schoon",
     "Prullenbak leeg"
+  ]}
+];
+
+// Seizoen check: is huidige maand binnen bereik?
+function isSeizoen(vanMaand, totMaand) {
+  const m = new Date().getMonth() + 1; // 1-12
+  if (vanMaand <= totMaand) return m >= vanMaand && m <= totMaand;
+  return m >= vanMaand || m <= totMaand;
+}
+
+const openingsTakenData = [
+  { sectie: "Openen", icon: "🌅", taken: [
+    "Deuren openen",
+    "Lampen aan",
+    "Muziek aan",
+    "Baanschema bekijken",
+    "Kleedkamers nalopen"
+  ]},
+  { sectie: "Entree", icon: "🚪", taken: [
+    "Entreevloer schoon",
+    "Deuren en klinken schoon",
+    "Vloermatten schoon",
+    "Desinfectiepomp controleren"
+  ]},
+  { sectie: "Gang (linkerzijde entree)", icon: "🏢", taken: [
+    "Vloer schoon",
+    "Deuren en klinken schoon"
+  ]},
+  { sectie: "Damestoilet (voorzijde)", icon: "🚻", taken: [
+    "WC schoon", "Wasbak schoon", "Vloer schoon", "Prullenbak leeg",
+    "WC papier aanwezig", "Zeepdispenser controleren", "Handdoekdispenser controleren", "Deuren en klinken schoon"
+  ]},
+  { sectie: "Herentoilet (voorzijde)", icon: "🚻", taken: [
+    "WC schoon", "Wasbak schoon", "Vloer schoon", "Prullenbak leeg",
+    "WC papier aanwezig", "Zeepdispenser controleren", "Handdoekdispenser controleren", "Deuren en klinken schoon"
+  ]},
+  { sectie: "Toiletten achter (dames)", icon: "🚽", taken: [
+    "WC schoon", "Wasbak schoon", "Vloer schoon", "Prullenbak leeg",
+    "WC papier aanwezig", "Zeepdispenser controleren", "Handdoekdispenser controleren", "Deuren en klinken schoon"
+  ]},
+  { sectie: "Toiletten achter (heren)", icon: "🚽", taken: [
+    "WC schoon", "Urinoirs schoon", "Wasbak schoon", "Vloer schoon", "Prullenbak leeg",
+    "WC papier aanwezig", "Zeepdispenser controleren", "Handdoekdispenser controleren", "Deuren en klinken schoon"
+  ]},
+  { sectie: "Kantine", icon: "🍽️", taken: [
+    "Vloer schoon",
+    "Koffiebakjes vullen"
+  ]},
+  { sectie: "Biljartruimte", icon: "🎱", taken: [
+    "Tafels schoon", "Vloer schoon", "Prullenbakken leeg"
+  ]},
+  { sectie: "Terras", icon: "☀️", seizoen: { van: 3, tot: 10 }, taken: [
+    "Tafels schoon", "Stoelen controleren op vlekken/vuil", "Prullenbakken leeg",
+    "Planten water geven"
+  ]},
+  { sectie: "Indoor padelbanen", icon: "🏸", taken: [
+    "Tafels schoon", "Stoelen controleren op vlekken/vuil",
+    "Loungebanken controleren op vlekken/vuil", "Bankjes controleren op vlekken/vuil"
+  ]},
+  { sectie: "Squashzone", icon: "🟡", taken: [
+    "Tafels schoon", "Stoelen controleren op vlekken/vuil", "Bankjes controleren op vlekken/vuil"
+  ]},
+  { sectie: "Indoor tennisbanen", icon: "🎾", taken: [
+    "Stoelen controleren op vlekken/vuil"
+  ]},
+  { sectie: "Bar – openen", icon: "🍺", taken: [
+    "Koelkasten gevuld",
+    "Fusten controleren",
+    "Kassasysteem schoon",
+    "Pin automaat schoon",
+    "Koffiemachine schoon",
+    "Kopjes en schoteltjes schoon",
+    "Suikerpot/melkkannetje schoon",
+    "Koelkasten schoon (buitenkant)"
+  ]},
+  { sectie: "Keuken – openen", icon: "👨‍🍳", taken: [
+    "Koelkast schoon (buitenkant)",
+    "Vriezer schoon (buitenkant)",
+    "Werkblad schoon",
+    "Handdoekdispenser controleren",
+    "Vloer schoon"
+  ]}
+];
+
+const sluitTakenData = [
+  { sectie: "Sluiten", icon: "🌙", taken: [
+    "Muziek uit",
+    "Lampen uit",
+    "Deuren op slot"
+  ]},
+  { sectie: "Damestoilet (voorzijde)", icon: "🚻", taken: [
+    "WC schoon", "Wasbak schoon", "Vloer schoon", "Prullenbak leeg",
+    "WC papier aanwezig", "Zeepdispenser controleren", "Handdoekdispenser controleren", "Deuren en klinken schoon"
+  ]},
+  { sectie: "Herentoilet (voorzijde)", icon: "🚻", taken: [
+    "WC schoon", "Wasbak schoon", "Vloer schoon", "Prullenbak leeg",
+    "WC papier aanwezig", "Zeepdispenser controleren", "Handdoekdispenser controleren", "Deuren en klinken schoon"
+  ]},
+  { sectie: "Toiletten achter (dames)", icon: "🚽", taken: [
+    "WC schoon", "Wasbak schoon", "Vloer schoon", "Prullenbak leeg",
+    "WC papier aanwezig", "Zeepdispenser controleren", "Handdoekdispenser controleren", "Deuren en klinken schoon"
+  ]},
+  { sectie: "Toiletten achter (heren)", icon: "🚽", taken: [
+    "WC schoon", "Urinoirs schoon", "Wasbak schoon", "Vloer schoon", "Prullenbak leeg",
+    "WC papier aanwezig", "Zeepdispenser controleren", "Handdoekdispenser controleren", "Deuren en klinken schoon"
+  ]},
+  { sectie: "Kantine", icon: "🍽️", taken: [
+    "Tafels schoon", "Stoelen controleren op vlekken/vuil",
+    "Koffiebakjes vullen", "Vloer schoon", "Prullenbakken leeg"
+  ]},
+  { sectie: "Biljartruimte", icon: "🎱", taken: [
+    "Tafels schoon", "Vloer schoon", "Prullenbakken leeg"
+  ]},
+  { sectie: "Terras", icon: "☀️", seizoen: { van: 3, tot: 10 }, taken: [
+    "Tafels schoon", "Stoelen controleren op vlekken/vuil", "Prullenbakken leeg"
+  ]},
+  { sectie: "Indoor padelbanen", icon: "🏸", taken: [
+    "Tafels schoon", "Stoelen controleren op vlekken/vuil",
+    "Loungebanken controleren op vlekken/vuil", "Bankjes controleren op vlekken/vuil"
+  ]},
+  { sectie: "Squashzone", icon: "🟡", taken: [
+    "Tafels schoon", "Stoelen controleren op vlekken/vuil", "Bankjes controleren op vlekken/vuil"
+  ]},
+  { sectie: "Indoor tennisbanen", icon: "🎾", taken: [
+    "Stoelen controleren op vlekken/vuil"
+  ]},
+  { sectie: "Bar – sluiten", icon: "🍺", taken: [
+    "Taps schoon",
+    "Drip trays leeg en schoon",
+    "Barblad schoon",
+    "Spoelbak schoon",
+    "Koelkasten schoon (buitenkant)",
+    "IJsemmer schoon",
+    "Prullenbak leeg",
+    "Koffiemachine schoon",
+    "Kopjes en schoteltjes schoon",
+    "Barmat schoon",
+    "Vloer schoon",
+    "Viltjes op de bar leggen 's avonds",
+    "Koffie/thee bakken vol"
+  ]},
+  { sectie: "Keuken – sluiten", icon: "👨‍🍳", taken: [
+    "Magnetron schoon",
+    "Salamander schoon",
+    "Vaatwasser nagespoeld",
+    "Spoelbak schoon",
+    "Afdruiprek schoon",
+    "Prullenbak leeg",
+    "Indien nodig was aanzetten + in droger"
   ]}
 ];
 
@@ -952,6 +1130,8 @@ const beheerTakenData = [
 
 // ===== STATE =====
 let dagelijksState = {};
+let openingState = {};
+let sluitState = {};
 let sportveldState = {};
 let remcoState = {};
 let onderhoudState = {};
@@ -1056,10 +1236,12 @@ function getThisWeekKey() {
 
 function populateNaamDropdowns() {
   const opties = MEDEWERKERS.map(n => `<option value="${n}">${n}</option>`).join('');
-  ['invullerNaam', 'sportveldNaam'].forEach(id => {
+  ['invullerNaam', 'sportveldNaam', 'sluitNaam'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '<option value="">Kies je naam...</option>' + opties;
   });
+  const filterEl = document.getElementById('filterNaam');
+  if (filterEl) filterEl.innerHTML = '<option value="">Alle namen</option>' + opties;
 }
 
 async function init() {
@@ -1067,17 +1249,19 @@ async function init() {
     new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 
   try {
-    const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster, savedAfval, savedLijsten, savedNamen, savedPin] = await Promise.all([
+    const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster, savedAfval, savedLijsten, savedNamen, savedPin, savedOpening, savedSluit] = await Promise.all([
       fbGet('dagelijks_' + getTodayKey()),
       fbGet('sportveld_' + getTodayKey()),
       fbGet('onderhoud_state'),
       fbGet('remco_' + getThisWeekKey()),
       fbGet('beheer_state'),
       fbGet('rooster_data'),
-    fbGet('afval_data'),
-    fbGet('lijsten_aanpassingen'),
-    fbGet('rooster_namen'),
-    fbGet('remco_pin')
+      fbGet('afval_data'),
+      fbGet('lijsten_aanpassingen'),
+      fbGet('rooster_namen'),
+      fbGet('remco_pin'),
+      fbGet('opening_' + getTodayKey()),
+      fbGet('sluit_' + getTodayKey())
     ]);
 
     if (savedDag) dagelijksState = savedDag;
@@ -1090,13 +1274,16 @@ async function init() {
     if (savedLijsten) lijstenAanpassingen = savedLijsten;
     if (savedNamen) MEDEWERKERS.splice(0, MEDEWERKERS.length, ...savedNamen);
     if (savedPin && savedPin.pin) sessionStorage.setItem('remcoPin', savedPin.pin);
+    if (savedOpening) openingState = savedOpening;
+    if (savedSluit) sluitState = savedSluit;
     populateNaamDropdowns();
   } catch(e) {
     console.error('Firebase laden mislukt, app start met lege staat:', e);
   }
 
   renderAlerts();
-  renderDagelijks();
+  renderOpening();
+  renderSluit();
   renderSportvelden();
   renderOnderhoud();
   renderBeheer();
@@ -1104,6 +1291,76 @@ async function init() {
 }
 
 // ===== RENDER DAGELIJKS =====
+
+// Generic render function for opening/sluit lists
+function renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  let total = 0, done = 0;
+
+  takenData.forEach((sectie, si) => {
+    // Skip seizoensgebonden secties buiten het seizoen
+    if (sectie.seizoen && !isSeizoen(sectie.seizoen.van, sectie.seizoen.tot)) return;
+
+    const sKey = lijstNaam + si;
+    const collapsed = collapsedSections[sKey];
+    const aanp = (lijstenAanpassingen[lijstNaam] || {})[sectie.sectie] || { verborgen: [], extra: [] };
+    const alleTaken = [...sectie.taken.filter(t => !(aanp.verborgen || []).includes(t)), ...(aanp.extra || [])];
+    let sectieDone = 0;
+
+    alleTaken.forEach((taak, ti) => {
+      const key = lijstNaam + si + '_' + ti;
+      if (state[key]) { done++; sectieDone++; }
+      total++;
+    });
+
+    if (alleTaken.length === 0) return;
+
+    const header = document.createElement('div');
+    header.className = 'section-header' + (collapsed ? ' collapsed' : '');
+    header.innerHTML = `<span class="section-icon">${sectie.icon}</span>${sectie.sectie}
+      <span class="section-count-badge">${sectieDone}/${alleTaken.length}</span>
+      <span class="section-progress">${Math.round(sectieDone/alleTaken.length*100)}%</span>
+      <span class="section-toggle">▼</span>`;
+    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam); };
+    container.appendChild(header);
+
+    const list = document.createElement('div');
+    list.className = 'task-list' + (collapsed ? ' collapsed' : '');
+
+    alleTaken.forEach((taak, ti) => {
+      const key = lijstNaam + si + '_' + ti;
+      const isDone = !!state[key];
+      const item = document.createElement('div');
+      item.className = 'task-item' + (isDone ? ' done' : '');
+      item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label">${taak}</div>`;
+      item.onclick = () => {
+        state[key] = !state[key];
+        fbSet(stateKey + '_' + getTodayKey(), state);
+        renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam);
+      };
+      list.appendChild(item);
+    });
+    container.appendChild(list);
+  });
+
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  const progressEl = document.getElementById(progressTextId);
+  const barEl = document.getElementById(progressBarId);
+  const btnEl = document.getElementById(submitBtnId);
+  if (progressEl) progressEl.textContent = done + ' / ' + total + ' taken';
+  if (barEl) barEl.style.width = pct + '%';
+  if (btnEl) btnEl.disabled = done === 0;
+}
+
+function renderOpening() {
+  renderLijst(openingsTakenData, openingState, 'opening', 'openingTasks', 'progressText', 'progressBar', 'submitBtn', 'opening');
+}
+
+function renderSluit() {
+  renderLijst(sluitTakenData, sluitState, 'sluit', 'sluitTasks', 'sluitProgressText', 'sluitProgressBar', 'sluitSubmitBtn', 'sluit');
+}
 
 function renderDagelijks() {
   const container = document.getElementById('dagelijksTasks');
@@ -1508,32 +1765,39 @@ window.submitDagelijks = function submitDagelijks() {
   if (!naam) { showToast('Vul eerst je naam in!'); return; }
   let total = 0, done = 0;
   const details = [];
-  dagelijksTakenData.forEach((s, si) => {
+  openingsTakenData.forEach((s, si) => {
+    if (s.seizoen && !isSeizoen(s.seizoen.van, s.seizoen.tot)) return;
     s.taken.forEach((taak, ti) => {
       total++;
-      const isDone = !!dagelijksState[si+'_'+ti];
+      const isDone = !!openingState['opening' + si + '_' + ti];
       if (isDone) done++;
       details.push({ sectie: s.sectie, taak, gedaan: isDone });
     });
   });
-  // Include remco tasks for today
-  const vandaagDag = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
-  remcoTakenData.forEach((sectie, si) => {
-    sectie.taken.forEach((taak, ti) => {
-      const key = si + '_' + ti;
-      const state = remcoState[key];
-      if (state && state.selected && state.dagen.includes(vandaagDag)) {
-        total++;
-        const isDone = !!dagelijksState['remco_' + key];
-        if (isDone) done++;
-        details.push({ sectie: '📅 Extra (Remco)', taak: taak.naam, gedaan: isDone });
-      }
-    });
-  });
-  saveToHistory({ type: 'dagelijks', datum: new Date().toISOString(), door: naam, opmerkingen: document.getElementById('opmerkingen').value.trim(), gedaan: done, totaal: total, details });
-  showToast('Opgeslagen door ' + naam + '! ✓');
+  saveToHistory({ type: 'opening', datum: new Date().toISOString(), door: naam, opmerkingen: document.getElementById('opmerkingen').value.trim(), gedaan: done, totaal: total, details });
+  showToast('Openen opgeslagen door ' + naam + '! ✓');
   document.getElementById('invullerNaam').value = '';
   document.getElementById('opmerkingen').value = '';
+}
+
+window.submitSluit = function submitSluit() {
+  const naam = document.getElementById('sluitNaam').value.trim();
+  if (!naam) { showToast('Vul eerst je naam in!'); return; }
+  let total = 0, done = 0;
+  const details = [];
+  sluitTakenData.forEach((s, si) => {
+    if (s.seizoen && !isSeizoen(s.seizoen.van, s.seizoen.tot)) return;
+    s.taken.forEach((taak, ti) => {
+      total++;
+      const isDone = !!sluitState['sluit' + si + '_' + ti];
+      if (isDone) done++;
+      details.push({ sectie: s.sectie, taak, gedaan: isDone });
+    });
+  });
+  saveToHistory({ type: 'sluiting', datum: new Date().toISOString(), door: naam, opmerkingen: document.getElementById('sluitOpmerkingen').value.trim(), gedaan: done, totaal: total, details });
+  showToast('Sluiten opgeslagen door ' + naam + '! ✓');
+  document.getElementById('sluitNaam').value = '';
+  document.getElementById('sluitOpmerkingen').value = '';
 }
 
 window.submitSportvelden = function submitSportvelden() {
@@ -1576,12 +1840,12 @@ window.renderHistorie = async function renderHistorie() {
   const container = document.getElementById('historieList');
   container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div>Laden...</div>';
   const history = await fbGetHistory();
-  const filterNaam = (document.getElementById('filterNaam').value || '').toLowerCase();
+  const filterNaam = (document.getElementById('filterNaam').value || '');
   const filterVanaf = document.getElementById('filterVanaf').value;
   const filterType = document.getElementById('filterType').value;
 
   const filtered = history.filter(e => {
-    if (filterNaam && !(e.door || '').toLowerCase().includes(filterNaam)) return false;
+    if (filterNaam && !(e.door || '').includes(filterNaam)) return false;
     if (filterVanaf && e.datum < filterVanaf) return false;
     if (filterType && e.type !== filterType) return false;
     return true;
@@ -1723,6 +1987,7 @@ window.showTab = function showTab(tab, el) {
   el.classList.add('active');
   if (tab === 'historie') renderHistorie();
   if (tab === 'rooster') window.renderRoosterView();
+  if (tab === 'sluit') renderSluit();
 }
 
 window.openRemco = function openRemco(el) {
@@ -1948,7 +2213,8 @@ async function saveLijstenAanpassingen() {
 }
 
 function getLijstData(lijstNaam) {
-  if (lijstNaam === 'dagelijks') return dagelijksTakenData.map(s => ({ sectie: s.sectie, taken: s.taken }));
+  if (lijstNaam === 'opening') return openingsTakenData.map(s => ({ sectie: s.sectie, taken: s.taken }));
+  if (lijstNaam === 'sluit') return sluitTakenData.map(s => ({ sectie: s.sectie, taken: s.taken }));
   if (lijstNaam === 'sportvelden') return sportveldTakenData.map(s => ({ sectie: s.sectie, taken: s.taken }));
   if (lijstNaam === 'remco') return remcoTakenData.map(s => ({ sectie: s.sectie, taken: s.taken.map(t => t.naam) }));
   if (lijstNaam === 'onderhoud') return onderhoudData.map(s => ({ sectie: s.sectie, taken: s.taken.map(t => t.naam) }));
@@ -1961,7 +2227,8 @@ let activeLijst = 'dagelijks';
 function renderLijstenBeheer() {
   const container = document.getElementById('lijstenBeheer');
   const lijsten = [
-    { key: 'dagelijks', label: '📋 Dagelijks' },
+    { key: 'opening', label: '🌅 Openen' },
+    { key: 'sluit', label: '🌙 Sluiten' },
     { key: 'sportvelden', label: '🏟️ Sportvelden' },
     { key: 'remco', label: '📅 Remco weekplanning' },
     { key: 'onderhoud', label: '🔧 Onderhoud' },
@@ -1984,9 +2251,13 @@ function renderLijstenBeheer() {
   alleSecties.forEach(sectie => {
     const sectieAanp = aanp[sectie.sectie] || { verborgen: [], extra: [] };
     const alleTaken = [...sectie.taken, ...(sectieAanp.extra || [])];
+    const isNieuwe = sectieAanp.isNieuwe;
 
     html += `<div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:12px;margin-bottom:10px;">
-      <p style="font-size:13px;font-weight:500;margin:0 0 10px;color:var(--donker);">${sectie.sectie}</p>`;
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <p style="font-size:13px;font-weight:500;margin:0;color:var(--donker);">${sectie.sectie}</p>
+        ${isNieuwe ? `<button onclick="verwijderSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' )" style="font-size:11px;padding:4px 8px;color:var(--rood);background:#FEE2E2;border:none;border-radius:6px;">🗑️ Verwijderen</button>` : ''}
+      </div>`;
 
     alleTaken.forEach(taak => {
       const taakNaam = typeof taak === 'string' ? taak : taak.naam || taak;
@@ -2019,6 +2290,18 @@ function renderLijstenBeheer() {
   container.innerHTML = html;
 }
 
+window.verwijderSectie = async function(lijst, sectie) {
+  if (!lijstenAanpassingen[lijst]) return;
+  delete lijstenAanpassingen[lijst][sectie];
+  await saveLijstenAanpassingen();
+  renderLijstenBeheer();
+  renderOpening(); renderSluit();
+  renderSportvelden();
+  renderOnderhoud();
+  renderBeheer();
+  showToast('Sectie verwijderd!');
+}
+
 window.voegSectieToe = async function(lijst) {
   const input = document.getElementById(`nieuweSectieNaam_${lijst}`);
   if (!input || !input.value.trim()) { showToast('Vul een sectienaam in!'); return; }
@@ -2029,7 +2312,7 @@ window.voegSectieToe = async function(lijst) {
   input.value = '';
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
-  renderDagelijks();
+  renderOpening(); renderSluit();
   renderSportvelden();
   renderOnderhoud();
   renderBeheer();
@@ -2053,7 +2336,7 @@ window.toggleTaakZichtbaar = async function(lijst, sectie, taak, isVerborgen) {
   }
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
-  renderDagelijks();
+  renderOpening(); renderSluit();
   renderSportvelden();
   renderRemco();
   showToast(isVerborgen ? 'Taak weer zichtbaar!' : 'Taak verborgen!');
@@ -2070,7 +2353,8 @@ window.voegTaakToe = async function(lijst, sectie) {
   input.value = '';
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
-  renderDagelijks();
+  renderOpening();
+  renderSluit();
   renderSportvelden();
   renderRemco();
   showToast('Taak toegevoegd!');
@@ -2083,7 +2367,7 @@ window.verwijderExtraTaak = async function(lijst, sectie, taak) {
   if (idx >= 0) extra.splice(idx, 1);
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
-  renderDagelijks();
+  renderOpening(); renderSluit();
   renderSportvelden();
   renderRemco();
   showToast('Taak verwijderd!');
