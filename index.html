@@ -2622,7 +2622,8 @@ window.renderRoosterView = function renderRoosterView() {
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">';
   days.forEach(day => {
     const dagData = roosterData[day.key] || { shifts: [], opmerking: '' };
-    const shifts = (Array.isArray(dagData) ? dagData : (dagData.shifts || [])).slice().sort((a, b) => a.van.localeCompare(b.van));
+    const rawShifts = Array.isArray(dagData) ? dagData : (dagData.shifts || []);
+    const shifts = rawShifts.map((s, i) => ({...s, _origIdx: i})).sort((a, b) => a.van.localeCompare(b.van));
     const opmerking = dagData.opmerking || '';
     const isToday = day.key === today;
     
@@ -2635,7 +2636,8 @@ window.renderRoosterView = function renderRoosterView() {
     if (!shifts.length) {
       html += `<p style="font-size:11px;color:var(--grijs-tekst);">Geen diensten</p>`;
     } else {
-      shifts.forEach((s, idx) => {
+      shifts.forEach((s) => {
+        const idx = s._origIdx;
         const aangemeld = s.aanmeldingen || [];
         const aangemeldLijst = aangemeld.length > 0 
           ? aangemeld.map((n, ni) => {
@@ -2676,8 +2678,8 @@ window.renderRoosterView = function renderRoosterView() {
   // Add change listeners for "Andere naam" option
   days.forEach(day => {
     const dagData = roosterData[day.key] || { shifts: [] };
-    const shifts = Array.isArray(dagData) ? dagData : (dagData.shifts || []);
-    shifts.forEach((s, idx) => {
+    const rawShifts = Array.isArray(dagData) ? dagData : (dagData.shifts || []);
+    rawShifts.forEach((s, idx) => {
       const drop = document.getElementById(`drop_${day.key}_${idx}`);
       if (drop) {
         drop.onchange = () => {
