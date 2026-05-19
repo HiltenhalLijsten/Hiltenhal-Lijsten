@@ -1222,16 +1222,25 @@ function renderAlerts() {
   container.innerHTML = html;
 }
 
+function getNLDateString(date = new Date()) {
+  return date.toLocaleDateString('nl-NL', { timeZone: 'Europe/Amsterdam', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .split('-').reverse().join('-'); // dd-mm-yyyy -> yyyy-mm-dd
+}
+
 function getTodayKey() {
-  return new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const nlDate = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  return nlDate.getFullYear() + '-' + String(nlDate.getMonth()+1).padStart(2,'0') + '-' + String(nlDate.getDate()).padStart(2,'0');
 }
 
 function getThisWeekKey() {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(new Date(d).setDate(diff));
-  return monday.toISOString().split('T')[0];
+  const now = new Date();
+  const nlDate = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  const day = nlDate.getDay();
+  const diff = nlDate.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(nlDate);
+  monday.setDate(diff);
+  return monday.getFullYear() + '-' + String(monday.getMonth()+1).padStart(2,'0') + '-' + String(monday.getDate()).padStart(2,'0');
 }
 
 function populateNaamDropdowns() {
@@ -2499,7 +2508,7 @@ function renderAfvalCalendar() {
   const firstDay = new Date(year, month, 1).getDay();
   const startDay = firstDay === 0 ? 6 : firstDay - 1;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayKey();
 
   let html = `
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
@@ -2572,19 +2581,19 @@ window.roosterViewWeekOffset = 0;
 window.roosterEditWeekOffset = 0;
 
 function getWeekDays(offset = 0) {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(new Date(d).setDate(diff + offset * 7));
+  const now = new Date();
+  const nlDate = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  const day = nlDate.getDay();
+  const diff = nlDate.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(nlDate);
+  monday.setDate(diff + offset * 7);
   const days = [];
   const dagNamen = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
   for (let i = 0; i < 7; i++) {
     const dd = new Date(monday);
     dd.setDate(monday.getDate() + i);
-    days.push({
-      key: dd.toISOString().split('T')[0],
-      label: dagNamen[i] + ' ' + dd.getDate()
-    });
+    const key = dd.getFullYear() + '-' + String(dd.getMonth()+1).padStart(2,'0') + '-' + String(dd.getDate()).padStart(2,'0');
+    days.push({ key, label: dagNamen[i] + ' ' + dd.getDate() });
   }
   const weekNr = getWeekNumber(monday);
   return { days, weekNr, monday };
@@ -2602,7 +2611,7 @@ const MEDEWERKERS = ['Bart', 'Bertine', 'Charly', 'Frank', 'Ilona', 'Lot', 'Mano
 window.renderRoosterView = function renderRoosterView() {
   const container = document.getElementById('roosterView');
   const { days, weekNr } = getWeekDays(window.roosterViewWeekOffset);
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayKey();
   
   let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
     <button onclick="window.roosterViewWeekOffset--;window.renderRoosterView()" style="font-size:13px;padding:5px 12px;">← Vorige week</button>
@@ -2629,7 +2638,10 @@ window.renderRoosterView = function renderRoosterView() {
       shifts.forEach((s, idx) => {
         const aangemeld = s.aanmeldingen || [];
         const aangemeldLijst = aangemeld.length > 0 
-          ? aangemeld.map((n, ni) => `<span style="display:inline-flex;align-items:center;gap:3px;background:var(--groen-licht);color:var(--groen);font-size:11px;font-weight:500;padding:2px 6px;border-radius:10px;margin:1px;">${n}<button onclick="removeAanmelding('${day.key}',${idx},${ni})" style="background:none;border:none;cursor:pointer;color:var(--groen);font-size:11px;line-height:1;padding:0 0 0 2px;">✕</button></span>`).join('')
+          ? aangemeld.map((n, ni) => `<span style="display:inline-flex;align-items:center;gap:3px;background:var(--groen-licht);color:var(--groen);font-size:11px;font-weight:500;padding:2px 6px;border-radius:10px;margin:1px;">
+              ${n.naam || n}${n.opmerking ? ` <span style="font-weight:400;opacity:0.8;">(${n.opmerking})</span>` : ''}
+              <button onclick="removeAanmelding('${day.key}',${idx},${ni})" style="background:none;border:none;cursor:pointer;color:var(--groen);font-size:11px;line-height:1;padding:0 0 0 2px;">✕</button>
+            </span>`).join('')
           : '';
         
         const opties = MEDEWERKERS.map(n => `<option value="${n}">${n}</option>`).join('');
@@ -2648,6 +2660,7 @@ window.renderRoosterView = function renderRoosterView() {
           <div id="open_${day.key}_${idx}" style="display:none;margin-top:4px;">
             <input type="text" id="openNaam_${day.key}_${idx}" placeholder="Jouw naam..." style="font-size:12px;padding:4px 6px;width:100%;">
           </div>
+          <input type="text" id="opmerking_${day.key}_${idx}" placeholder="Opmerking (optioneel, bijv. ik kom om 14:30)" style="font-size:11px;padding:3px 6px;width:100%;margin-top:4px;color:var(--grijs-tekst);">
         </div>`;
       });
     }
@@ -2764,12 +2777,19 @@ window.claimShift = async function claimShift(dayKey, idx) {
   }
   if (!naam) { showToast('Selecteer of vul een naam in!'); return; }
   
+  const opmerkingInput = document.getElementById(`opmerking_${dayKey}_${idx}`);
+  const opmerking = opmerkingInput ? opmerkingInput.value.trim() : '';
+  
   if (!roosterData[dayKey] || Array.isArray(roosterData[dayKey])) return;
   
   const shift = roosterData[dayKey].shifts[idx];
   if (!shift.aanmeldingen) shift.aanmeldingen = [];
-  if (shift.aanmeldingen.includes(naam)) { showToast(naam + ' staat er al bij!'); return; }
-  shift.aanmeldingen.push(naam);
+  
+  // Check if naam already exists
+  const bestaatAl = shift.aanmeldingen.some(a => (a.naam || a) === naam);
+  if (bestaatAl) { showToast(naam + ' staat er al bij!'); return; }
+  
+  shift.aanmeldingen.push({ naam, opmerking });
   
   await fbSet('rooster_data', roosterData);
   window.renderRoosterView();
