@@ -2638,10 +2638,14 @@ window.renderRoosterView = function renderRoosterView() {
       shifts.forEach((s, idx) => {
         const aangemeld = s.aanmeldingen || [];
         const aangemeldLijst = aangemeld.length > 0 
-          ? aangemeld.map((n, ni) => `<span style="display:inline-flex;align-items:center;gap:3px;background:var(--groen-licht);color:var(--groen);font-size:11px;font-weight:500;padding:2px 6px;border-radius:10px;margin:1px;">
-              ${n.naam || n}${n.opmerking ? ` <span style="font-weight:400;opacity:0.8;">(${n.opmerking})</span>` : ''}
-              <button onclick="removeAanmelding('${day.key}',${idx},${ni})" style="background:none;border:none;cursor:pointer;color:var(--groen);font-size:11px;line-height:1;padding:0 0 0 2px;">✕</button>
-            </span>`).join('')
+          ? aangemeld.map((n, ni) => {
+              const naam = typeof n === 'object' ? n.naam : n;
+              const opmerking = typeof n === 'object' ? n.opmerking : '';
+              return `<span style="display:inline-flex;align-items:center;gap:3px;background:var(--groen-licht);color:var(--groen);font-size:11px;font-weight:500;padding:2px 6px;border-radius:10px;margin:1px;">
+                ${naam}${opmerking ? ` <span style="font-weight:400;opacity:0.8;">(${opmerking})</span>` : ''}
+                <button onclick="removeAanmelding('${day.key}',${idx},${ni})" style="background:none;border:none;cursor:pointer;color:var(--groen);font-size:11px;line-height:1;padding:0 0 0 2px;">✕</button>
+              </span>`;
+            }).join('')
           : '';
         
         const opties = MEDEWERKERS.map(n => `<option value="${n}">${n}</option>`).join('');
@@ -2736,11 +2740,14 @@ window.addShift = function addShift(dayKey) {
   window.renderRoosterEditor();
 }
 
-window.removeShift = function removeShift(dayKey, idx) {
+window.removeShift = async function removeShift(dayKey, idx) {
   if (roosterData[dayKey] && roosterData[dayKey].shifts) {
     roosterData[dayKey].shifts.splice(idx, 1);
+    await fbSet('rooster_data', roosterData);
   }
   window.renderRoosterEditor();
+  window.renderRoosterView();
+  showToast('Dienst verwijderd!');
 }
 
 window.updateShift = function updateShift(dayKey, idx, field, value) {
@@ -2759,7 +2766,7 @@ window.updateOpmerking = function updateOpmerking(dayKey, value) {
 window.removeAanmelding = async function removeAanmelding(dayKey, shiftIdx, naamIdx) {
   if (!roosterData[dayKey] || Array.isArray(roosterData[dayKey])) return;
   const shift = roosterData[dayKey].shifts[shiftIdx];
-  if (!shift.aanmeldingen) return;
+  if (!shift || !shift.aanmeldingen) return;
   shift.aanmeldingen.splice(naamIdx, 1);
   await fbSet('rooster_data', roosterData);
   window.renderRoosterView();
@@ -2785,8 +2792,8 @@ window.claimShift = async function claimShift(dayKey, idx) {
   const shift = roosterData[dayKey].shifts[idx];
   if (!shift.aanmeldingen) shift.aanmeldingen = [];
   
-  // Check if naam already exists
-  const bestaatAl = shift.aanmeldingen.some(a => (a.naam || a) === naam);
+  // Check if naam already exists (handle both old string format and new object format)
+  const bestaatAl = shift.aanmeldingen.some(a => (typeof a === 'object' ? a.naam : a) === naam);
   if (bestaatAl) { showToast(naam + ' staat er al bij!'); return; }
   
   shift.aanmeldingen.push({ naam, opmerking });
