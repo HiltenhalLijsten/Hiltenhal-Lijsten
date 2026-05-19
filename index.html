@@ -565,29 +565,15 @@
 
 <!-- TAB 5: HISTORIE -->
 <div class="content" id="tab-historie">
-  <div class="history-filter">
-    <div class="form-row">
-      <label>Zoek op naam</label>
-      <select id="filterNaam" onchange="renderHistorie()" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
-        <option value="">Alle namen</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label>Datum vanaf</label>
-      <input type="date" id="filterVanaf" oninput="renderHistorie()">
-    </div>
-    <div class="form-row">
-      <label>Type</label>
-      <select id="filterType" onchange="renderHistorie()">
-        <option value="">Alles</option>
-        <option value="dagelijks">Dagelijks</option>
-        <option value="sportvelden">Sportvelden</option>
-        <option value="weekplan">Weekplan Remco</option>
-        <option value="onderhoud">Onderhoud</option>
-      </select>
-    </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="historieTypeBtns">
+    <button onclick="setHistorieType('opening')" id="hbtn-opening" style="font-size:13px;padding:6px 14px;border-radius:20px;background:var(--donker);color:var(--wit);border:none;">🌅 Openen</button>
+    <button onclick="setHistorieType('sluit')" id="hbtn-sluit" style="font-size:13px;padding:6px 14px;border-radius:20px;">🌙 Sluiten</button>
+    <button onclick="setHistorieType('sportvelden')" id="hbtn-sportvelden" style="font-size:13px;padding:6px 14px;border-radius:20px;">🏟️ Sportvelden</button>
+    <button onclick="setHistorieType('onderhoud')" id="hbtn-onderhoud" style="font-size:13px;padding:6px 14px;border-radius:20px;">🔧 Onderhoud</button>
+    <button onclick="setHistorieType('beheer')" id="hbtn-beheer" style="font-size:13px;padding:6px 14px;border-radius:20px;">⚙️ Beheer</button>
   </div>
-  <div id="historieList"></div>
+  <div id="historieKalender"></div>
+  <div id="historieDagDetail" style="display:none;margin-top:16px;"></div>
 </div>
 
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
@@ -1237,8 +1223,6 @@ function populateNaamDropdowns() {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '<option value="">Kies je naam...</option>' + opties;
   });
-  const filterEl = document.getElementById('filterNaam');
-  if (filterEl) filterEl.innerHTML = '<option value="">Alle namen</option>' + opties;
 }
 
 async function init() {
@@ -1897,105 +1881,152 @@ window.toggleHistoryDetail = function toggleHistoryDetail(id) {
   }
 }
 
-window.renderHistorie = async function renderHistorie() {
-  const container = document.getElementById('historieList');
-  container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div>Laden...</div>';
-  const history = await fbGetHistory();
-  const filterNaam = (document.getElementById('filterNaam').value || '');
-  const filterVanaf = document.getElementById('filterVanaf').value;
-  const filterType = document.getElementById('filterType').value;
+// ===== NIEUWE HISTORIE =====
+let historieType = 'opening';
+let historieViewDate = new Date();
 
-  const filtered = history.filter(e => {
-    if (filterNaam && !(e.door || '').includes(filterNaam)) return false;
-    if (filterVanaf && e.datum < filterVanaf) return false;
-    if (filterType && e.type !== filterType) return false;
-    return true;
+window.setHistorieType = function(type) {
+  historieType = type;
+  const types = ['opening', 'sluit', 'sportvelden', 'onderhoud', 'beheer'];
+  types.forEach(t => {
+    const btn = document.getElementById('hbtn-' + t);
+    if (btn) {
+      btn.style.background = t === type ? 'var(--donker)' : '';
+      btn.style.color = t === type ? 'var(--wit)' : '';
+      btn.style.border = t === type ? 'none' : '';
+    }
+  });
+  document.getElementById('historieDagDetail').style.display = 'none';
+  renderHistorie();
+}
+
+window.renderHistorie = async function renderHistorie() {
+  const container = document.getElementById('historieKalender');
+  if (!container) return;
+  container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div>Laden...</div>';
+
+  const history = await fbGetHistory();
+  
+  // Filter op type
+  const typeMap = {
+    'opening': ['opening'],
+    'sluit': ['sluiting'],
+    'sportvelden': ['sportvelden'],
+    'onderhoud': ['onderhoud'],
+    'beheer': ['beheer']
+  };
+  const relevantTypes = typeMap[historieType] || [historieType];
+  const filtered = history.filter(e => relevantTypes.includes(e.type));
+
+  // Groepeer per datum
+  const perDatum = {};
+  filtered.forEach(e => {
+    const datum = e.datum ? e.datum.split('T')[0] : null;
+    if (!datum) return;
+    if (!perDatum[datum]) perDatum[datum] = [];
+    perDatum[datum].push(e);
   });
 
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="icon">📋</div>Nog geen opgeslagen lijsten gevonden.</div>`;
-    return;
-  }
+  // Kalender bouwen
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  const year = historieViewDate.getFullYear();
+  const month = historieViewDate.getMonth();
+  const maanden = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  const firstDay = new Date(year, month, 1).getDay();
+  const startDay = firstDay === 0 ? 6 : firstDay - 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = getTodayKey();
 
-  container.innerHTML = filtered.map((e, idx) => {
-    const d = new Date(e.datum);
-    const dateStr = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
-    const timeStr = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <button onclick="historieViewDate.setMonth(historieViewDate.getMonth()-1);renderHistorie()" style="font-size:13px;padding:5px 12px;">← Vorige</button>
+    <p style="font-size:14px;font-weight:500;margin:0;">${maanden[month]} ${year}</p>
+    <button onclick="historieViewDate.setMonth(historieViewDate.getMonth()+1);renderHistorie()" style="font-size:13px;padding:5px 12px;">Volgende →</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+    ${['Ma','Di','Wo','Do','Vr','Za','Zo'].map(d => `<div style="text-align:center;font-size:11px;font-weight:500;color:var(--grijs-tekst);padding:4px 0;">${d}</div>`).join('')}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
+    ${Array(startDay).fill('<div></div>').join('')}
+    ${Array.from({length: daysInMonth}, (_, i) => {
+      const day = i + 1;
+      const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const entries = perDatum[dateKey] || [];
+      const isToday = dateKey === todayKey;
+      const heeftData = entries.length > 0;
+      return `<div onclick="toonDagDetail('${dateKey}')" style="min-height:44px;background:${isToday ? 'var(--blauw-licht)' : heeftData ? 'var(--groen-licht)' : 'var(--wit)'};border:1px solid ${isToday ? '#BFDBFE' : heeftData ? '#A7F3D0' : 'var(--grijs-mid)'};border-radius:6px;padding:4px;cursor:${heeftData ? 'pointer' : 'default'};display:flex;flex-direction:column;align-items:center;">
+        <span style="font-size:12px;font-weight:${isToday?'700':'400'};color:${isToday?'#1E40AF':heeftData?'var(--groen)':'var(--donker)'};">${day}</span>
+        ${heeftData ? `<span style="font-size:10px;color:var(--groen);font-weight:500;">${entries.length}x</span>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
 
-    if (e.type === 'dagelijks' || e.type === 'sportvelden') {
-      const pct = Math.round(e.gedaan / e.totaal * 100);
-      const icon = e.type === 'sportvelden' ? '🏟️' : '📋';
+  container.innerHTML = html;
+}
 
-      // Group details by sectie
-      let detailHtml = '';
-      if (e.details && e.details.length > 0) {
-        const bySectie = {};
-        e.details.forEach(d => {
-          if (!bySectie[d.sectie]) bySectie[d.sectie] = [];
-          bySectie[d.sectie].push(d);
-        });
-        detailHtml = Object.entries(bySectie).map(([sectie, taken]) => `
-          <div style="margin-bottom:10px;">
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--grijs-tekst);margin-bottom:4px;">${sectie}</div>
-            ${taken.map(t => `
-              <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;">
-                <span style="color:${t.gedaan ? 'var(--groen)' : 'var(--rood)'};font-size:12px;">${t.gedaan ? '✓' : '✗'}</span>
-                <span style="color:${t.gedaan ? 'var(--donker)' : 'var(--grijs-tekst)'};${t.gedaan ? '' : 'text-decoration:line-through'}">${t.taak}</span>
-              </div>`).join('')}
-          </div>`).join('');
-      } else {
-        detailHtml = '<p style="font-size:13px;color:var(--grijs-tekst);">Geen taakdetails beschikbaar (oudere opslag)</p>';
-      }
+window.toonDagDetail = async function(dateKey) {
+  const history = await fbGetHistory();
+  const typeMap = {
+    'opening': ['opening'],
+    'sluit': ['sluiting'],
+    'sportvelden': ['sportvelden'],
+    'onderhoud': ['onderhoud'],
+    'beheer': ['beheer']
+  };
+  const relevantTypes = typeMap[historieType] || [historieType];
+  const entries = history.filter(e => {
+    const datum = e.datum ? e.datum.split('T')[0] : null;
+    return datum === dateKey && relevantTypes.includes(e.type);
+  });
 
-      return `<div class="history-entry">
-        <div class="history-entry-header">
-          <span class="history-date">${dateStr} ${timeStr}</span>
-          <span class="history-name">${icon} ${e.door}</span>
+  const detail = document.getElementById('historieDagDetail');
+  if (!entries.length) { detail.style.display = 'none'; return; }
+
+  const dagNaam = new Date(dateKey + 'T12:00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+  
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <p style="font-size:15px;font-weight:500;margin:0;">${dagNaam}</p>
+    <button onclick="document.getElementById('historieDagDetail').style.display='none'" style="font-size:12px;padding:4px 10px;">✕ Sluiten</button>
+  </div>`;
+
+  entries.forEach(e => {
+    const timeStr = e.datum ? new Date(e.datum).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' }) : '';
+    
+    if (e.type === 'onderhoud') {
+      html += `<div class="history-entry">
+        <p style="font-size:13px;font-weight:500;margin:0 0 4px;">${e.taak}</p>
+        <p style="font-size:12px;color:var(--grijs-tekst);margin:0;">${timeStr} · ${e.door || ''} · ${e.freq || ''}</p>
+      </div>`;
+    } else {
+      const pct = e.totaal > 0 ? Math.round(e.gedaan / e.totaal * 100) : 0;
+      const bySectie = {};
+      (e.details || []).forEach(d => {
+        if (!bySectie[d.sectie]) bySectie[d.sectie] = [];
+        bySectie[d.sectie].push(d);
+      });
+      
+      html += `<div class="history-entry">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <p style="font-size:13px;font-weight:500;margin:0;">${e.door || 'Onbekend'} · ${timeStr}</p>
           <span class="history-score${pct===100?' perfect':''}">${pct}% (${e.gedaan}/${e.totaal})</span>
-          <button onclick="toggleHistoryDetail(${idx})" style="background:none;border:1px solid var(--grijs-mid);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:12px;margin-left:4px;" id="arrow_${idx}">▼</button>
         </div>
-        <div class="history-tasks" style="margin-bottom:4px;">${e.opmerkingen ? `💬 <span>${e.opmerkingen}</span>` : ''}</div>
-        <div id="detail_${idx}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--grijs-mid);">
-          ${detailHtml}
-        </div>
-      </div>`;
-
-    } else if (e.type === 'weekplan') {
-      const totaalTaken = Object.values(e.taken || {}).flat().length;
-      const detailHtml = Object.entries(e.taken || {})
-        .filter(([dag, taken]) => taken.length > 0)
-        .map(([dag, taken]) => `
+        ${e.opmerkingen ? `<p style="font-size:12px;background:#FEF3C7;padding:6px 8px;border-radius:6px;margin:0 0 8px;">💬 ${e.opmerkingen}</p>` : ''}
+        ${Object.entries(bySectie).map(([sectie, taken]) => `
           <div style="margin-bottom:8px;">
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--grijs-tekst);margin-bottom:3px;">${dag}</div>
-            ${taken.map(t => `<div style="font-size:13px;padding:2px 0;">• ${t}</div>`).join('')}
-          </div>`).join('');
-
-      return `<div class="history-entry">
-        <div class="history-entry-header">
-          <span class="history-date">${dateStr}</span>
-          <span class="history-name">📅 Weekplan – ${e.door}</span>
-          <span class="history-score">${totaalTaken} taken</span>
-          <button onclick="toggleHistoryDetail(${idx})" style="background:none;border:1px solid var(--grijs-mid);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:12px;margin-left:4px;" id="arrow_${idx}">▼</button>
-        </div>
-        <div class="history-tasks" style="margin-bottom:4px;">Week van <span>${e.weekKey}</span></div>
-        <div id="detail_${idx}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--grijs-mid);">
-          ${detailHtml}
-        </div>
-      </div>`;
-
-    } else if (e.type === 'onderhoud') {
-      return `<div class="history-entry">
-        <div class="history-entry-header">
-          <span class="history-date">${dateStr} ${timeStr}</span>
-          <span class="history-name">🔧 ${e.door}</span>
-          <span class="history-score" style="color:var(--oranje)">${e.freq}</span>
-        </div>
-        <div class="history-tasks"><span>${e.taak}</span></div>
+            <p style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--grijs-tekst);margin:0 0 3px;">${sectie}</p>
+            ${taken.map(t => `<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:2px 0;">
+              <span style="color:${t.gedaan?'var(--groen)':'var(--rood)'};">${t.gedaan?'✓':'✗'}</span>
+              <span style="${t.gedaan?'':'text-decoration:line-through;color:var(--grijs-tekst)'}">${t.taak}</span>
+            </div>`).join('')}
+          </div>`).join('')}
       </div>`;
     }
-    return '';
-  }).join('');
+  });
+
+  detail.innerHTML = html;
+  detail.style.display = 'block';
+  detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
 
 // ===== RENDER BEHEER =====
 function renderBeheer() {
