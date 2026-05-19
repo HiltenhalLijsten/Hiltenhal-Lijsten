@@ -439,6 +439,12 @@
   <div id="openingTasks"></div>
   <div class="submit-box">
     <div class="form-row">
+      <label>Ingevuld door</label>
+      <select id="invullerNaam" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
+        <option value="">Kies je naam...</option>
+      </select>
+    </div>
+    <div class="form-row">
       <label>Opmerking voor het personeel</label>
       <textarea id="opmerkingen" rows="2" placeholder="Bijv. toilet buiten werking, extra gedweild..."></textarea>
     </div>
@@ -458,6 +464,12 @@
   </div>
   <div id="sluitTasks"></div>
   <div class="submit-box">
+    <div class="form-row">
+      <label>Ingevuld door</label>
+      <select id="sluitNaam" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
+        <option value="">Kies je naam...</option>
+      </select>
+    </div>
     <div class="form-row">
       <label>Opmerking voor het personeel</label>
       <textarea id="sluitOpmerkingen" rows="2" placeholder="Bijv. toilet buiten werking..."></textarea>
@@ -570,7 +582,6 @@
     <button onclick="setHistorieType('sluit')" id="hbtn-sluit" style="font-size:13px;padding:6px 14px;border-radius:20px;">🌙 Sluiten</button>
     <button onclick="setHistorieType('sportvelden')" id="hbtn-sportvelden" style="font-size:13px;padding:6px 14px;border-radius:20px;">🏟️ Sportvelden</button>
     <button onclick="setHistorieType('onderhoud')" id="hbtn-onderhoud" style="font-size:13px;padding:6px 14px;border-radius:20px;">🔧 Onderhoud</button>
-    <button onclick="setHistorieType('beheer')" id="hbtn-beheer" style="font-size:13px;padding:6px 14px;border-radius:20px;">⚙️ Beheer</button>
   </div>
   <div id="historieKalender"></div>
   <div id="historieDagDetail" style="display:none;margin-top:16px;"></div>
@@ -1224,7 +1235,6 @@ function populateNaamDropdowns() {
     if (el) el.innerHTML = '<option value="">Kies je naam...</option>' + opties;
   });
 }
-
 async function init() {
   document.getElementById('headerDate').textContent =
     new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -1341,10 +1351,13 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
 }
 
 window.slaOpmerking = async function(type) {
-  const id = type === 'opening' ? 'opmerkingen' : 'sluitOpmerkingen';
-  const el = document.getElementById(id);
+  const tekstId = type === 'opening' ? 'opmerkingen' : 'sluitOpmerkingen';
+  const naamId = type === 'opening' ? 'invullerNaam' : 'sluitNaam';
+  const el = document.getElementById(tekstId);
+  const naamEl = document.getElementById(naamId);
+  const naam = naamEl ? naamEl.value : '';
   if (!el || !el.value.trim()) { showToast('Vul eerst een opmerking in!'); return; }
-  await fbSet(type + '_opmerking_' + getTodayKey(), { tekst: el.value.trim() });
+  await fbSet(type + '_opmerking_' + getTodayKey(), { tekst: el.value.trim(), door: naam });
   showToast('Opmerking opgeslagen! ✓');
 }
 
