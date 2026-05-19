@@ -428,6 +428,7 @@
 <!-- TAB 1: OPENING -->
 <div class="content active" id="tab-opening">
   <div id="onderhoudAlerts"></div>
+  <div id="vorigeSluitOpmerking"></div>
   <div class="progress-label">
     <span>Voortgang openen vandaag</span>
     <strong id="progressText">0 / 0 taken</strong>
@@ -437,23 +438,17 @@
   </div>
   <div id="openingTasks"></div>
   <div class="submit-box">
-    <h3>🌅 Openen afronden</h3>
     <div class="form-row">
-      <label>Ingevuld door</label>
-      <select id="invullerNaam" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
-        <option value="">Kies je naam...</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label>Opmerkingen (optioneel)</label>
+      <label>Opmerking voor het personeel</label>
       <textarea id="opmerkingen" rows="2" placeholder="Bijv. toilet buiten werking, extra gedweild..."></textarea>
     </div>
-    <button class="btn-primary" id="submitBtn" onclick="submitDagelijks()" disabled>Lijst opslaan ✓</button>
+    <button class="btn-primary" onclick="slaOpmerking('opening')" style="margin-top:8px;">Opmerking opslaan ✓</button>
   </div>
 </div>
 
 <!-- TAB 2: SLUITING -->
 <div class="content" id="tab-sluit">
+  <div id="vorigeOpeningOpmerking"></div>
   <div class="progress-label">
     <span>Voortgang sluiten vandaag</span>
     <strong id="sluitProgressText">0 / 0 taken</strong>
@@ -463,18 +458,11 @@
   </div>
   <div id="sluitTasks"></div>
   <div class="submit-box">
-    <h3>🌙 Sluiten afronden</h3>
     <div class="form-row">
-      <label>Ingevuld door</label>
-      <select id="sluitNaam" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--grijs-mid);border-radius:8px;background:var(--grijs);">
-        <option value="">Kies je naam...</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label>Opmerkingen (optioneel)</label>
+      <label>Opmerking voor het personeel</label>
       <textarea id="sluitOpmerkingen" rows="2" placeholder="Bijv. toilet buiten werking..."></textarea>
     </div>
-    <button class="btn-primary" id="sluitSubmitBtn" onclick="submitSluit()" disabled>Lijst opslaan ✓</button>
+    <button class="btn-primary" onclick="slaOpmerking('sluit')" style="margin-top:8px;">Opmerking opslaan ✓</button>
   </div>
 </div>
 
@@ -1285,6 +1273,8 @@ async function init() {
     if (savedPin && savedPin.pin) sessionStorage.setItem('remcoPin', savedPin.pin);
     if (savedOpening) openingState = savedOpening;
     if (savedSluit) sluitState = savedSluit;
+
+    await loadVorigeOpmerkingen();
     populateNaamDropdowns();
   } catch(e) {
     console.error('Firebase laden mislukt, app start met lege staat:', e);
@@ -1362,10 +1352,67 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
   const pct = total > 0 ? Math.round(done / total * 100) : 0;
   const progressEl = document.getElementById(progressTextId);
   const barEl = document.getElementById(progressBarId);
-  const btnEl = document.getElementById(submitBtnId);
   if (progressEl) progressEl.textContent = done + ' / ' + total + ' taken';
   if (barEl) barEl.style.width = pct + '%';
-  if (btnEl) btnEl.disabled = done === 0;
+}
+
+window.slaOpmerking = async function(type) {
+  const id = type === 'opening' ? 'opmerkingen' : 'sluitOpmerkingen';
+  const el = document.getElementById(id);
+  if (!el || !el.value.trim()) { showToast('Vul eerst een opmerking in!'); return; }
+  await fbSet(type + '_opmerking_' + getTodayKey(), { tekst: el.value.trim() });
+  showToast('Opmerking opgeslagen! ✓');
+}
+
+async function loadVorigeOpmerkingen() {
+  // Bij openen: toon sluiting van gisteren
+  const gisteren = new Date();
+  const nlGisteren = new Date(gisteren.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  nlGisteren.setDate(nlGisteren.getDate() - 1);
+  const gisterenKey = nlGisteren.getFullYear() + '-' + String(nlGisteren.getMonth()+1).padStart(2,'0') + '-' + String(nlGisteren.getDate()).padStart(2,'0');
+
+  const [sluitGisteren, openingVandaag, openingOpmerking, sluitOpmerking] = await Promise.all([
+    fbGet('sluit_opmerking_' + gisterenKey),
+    fbGet('opening_opmerking_' + getTodayKey()),
+    fbGet('opening_opmerking_' + getTodayKey()),
+    fbGet('sluit_opmerking_' + getTodayKey())
+  ]);
+
+  // Toon sluiting gisteren bij openen tab
+  const vorigeSluitEl = document.getElementById('vorigeSluitOpmerking');
+  if (vorigeSluitEl) {
+    if (sluitGisteren && sluitGisteren.tekst) {
+      vorigeSluitEl.innerHTML = `<div style="background:#FEF3C7;border:0.5px solid #FDE68A;border-radius:10px;padding:10px 14px;margin-bottom:12px;">
+        <p style="font-size:12px;font-weight:500;color:#92400E;margin:0 0 4px;">📋 Opmerking van gisteravond (sluiting)</p>
+        <p style="font-size:13px;color:#78350F;margin:0;">${sluitGisteren.tekst}</p>
+      </div>`;
+    } else {
+      vorigeSluitEl.innerHTML = '';
+    }
+  }
+
+  // Toon opening vandaag bij sluiten tab
+  const vorigeOpeningEl = document.getElementById('vorigeOpeningOpmerking');
+  if (vorigeOpeningEl) {
+    if (openingVandaag && openingVandaag.tekst) {
+      vorigeOpeningEl.innerHTML = `<div style="background:#FEF3C7;border:0.5px solid #FDE68A;border-radius:10px;padding:10px 14px;margin-bottom:12px;">
+        <p style="font-size:12px;font-weight:500;color:#92400E;margin:0 0 4px;">📋 Opmerking van vanmorgen (opening)</p>
+        <p style="font-size:13px;color:#78350F;margin:0;">${openingVandaag.tekst}</p>
+      </div>`;
+    } else {
+      vorigeOpeningEl.innerHTML = '';
+    }
+  }
+
+  // Herstel bestaande opmerkingen in textarea
+  if (openingOpmerking && openingOpmerking.tekst) {
+    const el = document.getElementById('opmerkingen');
+    if (el) el.value = openingOpmerking.tekst;
+  }
+  if (sluitOpmerking && sluitOpmerking.tekst) {
+    const el = document.getElementById('sluitOpmerkingen');
+    if (el) el.value = sluitOpmerking.tekst;
+  }
 }
 
 function renderOpening() {
