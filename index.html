@@ -1336,6 +1336,8 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
       item.onclick = () => {
         state[key] = !state[key];
         fbSet(stateKey + '_' + getTodayKey(), state);
+        // Auto-save snapshot to history
+        autoSaveHistorie(takenData, state, stateKey, lijstNaam);
         renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam);
       };
       list.appendChild(item);
@@ -1410,6 +1412,27 @@ async function loadVorigeOpmerkingen() {
     const el = document.getElementById('sluitOpmerkingen');
     if (el) el.value = sluitOpmerking.tekst;
   }
+}
+
+function autoSaveHistorie(takenData, state, stateKey, lijstNaam) {
+  let total = 0, done = 0;
+  const details = [];
+  takenData.forEach((s, si) => {
+    if (s.seizoen && !isSeizoen(s.seizoen.van, s.seizoen.tot)) return;
+    const aanp = (lijstenAanpassingen[lijstNaam] || {})[s.sectie] || { verborgen: [], extra: [] };
+    const alleTaken = [...s.taken.filter(t => !(aanp.verborgen || []).includes(t)), ...(aanp.extra || [])];
+    alleTaken.forEach((taak, ti) => {
+      const key = lijstNaam + si + '_' + ti;
+      const isDone = !!state[key];
+      total++;
+      if (isDone) done++;
+      details.push({ sectie: s.sectie, taak, gedaan: isDone });
+    });
+  });
+  const type = lijstNaam === 'opening' ? 'opening' : lijstNaam === 'sluit' ? 'sluiting' : lijstNaam;
+  fbSet('historie_snapshot_' + type + '_' + getTodayKey(), {
+    type, datum: new Date().toISOString(), gedaan: done, totaal: total, details, door: ''
+  });
 }
 
 function renderOpening() {
@@ -1920,18 +1943,17 @@ window.renderHistorie = async function renderHistorie() {
 
   const history = await fbGetHistory();
   
-  // Filter op type
   const typeMap = {
-    'opening': ['opening'],
-    'sluit': ['sluiting'],
-    'sportvelden': ['sportvelden'],
-    'onderhoud': ['onderhoud'],
-    'beheer': ['beheer']
+    'opening': 'opening',
+    'sluit': 'sluiting',
+    'sportvelden': 'sportvelden',
+    'onderhoud': 'onderhoud'
   };
-  const relevantTypes = typeMap[historieType] || [historieType];
+  const type = typeMap[historieType] || historieType;
+  const relevantTypes = [type];
   const filtered = history.filter(e => relevantTypes.includes(e.type));
 
-  // Groepeer per datum
+  // Groepeer per datum — ook snapshots ophalen
   const perDatum = {};
   filtered.forEach(e => {
     const datum = e.datum ? e.datum.split('T')[0] : null;
@@ -1939,6 +1961,19 @@ window.renderHistorie = async function renderHistorie() {
     if (!perDatum[datum]) perDatum[datum] = [];
     perDatum[datum].push(e);
   });
+
+  // Check snapshots voor huidige maand
+  const snapshotChecks = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    snapshotChecks.push(fbGet('historie_snapshot_' + type + '_' + dateKey).then(snap => {
+      if (snap) {
+        if (!perDatum[dateKey]) perDatum[dateKey] = [];
+        if (!perDatum[dateKey].find(x => x.datum === snap.datum)) perDatum[dateKey].push(snap);
+      }
+    }));
+  }
+  await Promise.all(snapshotChecks);
 
   // Kalender bouwen
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
@@ -1977,25 +2012,45 @@ window.renderHistorie = async function renderHistorie() {
 }
 
 window.toonDagDetail = async function(dateKey) {
-  const history = await fbGetHistory();
+  const detail = document.getElementById('historieDagDetail');
+  detail.innerHTML = '<div class="empty-state"><div class="icon">⏳</div>Laden...</div>';
+  detail.style.display = 'block';
+
   const typeMap = {
-    'opening': ['opening'],
-    'sluit': ['sluiting'],
-    'sportvelden': ['sportvelden'],
-    'onderhoud': ['onderhoud'],
-    'beheer': ['beheer']
+    'opening': 'opening',
+    'sluit': 'sluiting',
+    'sportvelden': 'sportvelden',
+    'onderhoud': 'onderhoud'
   };
-  const relevantTypes = typeMap[historieType] || [historieType];
-  const entries = history.filter(e => {
+  const type = typeMap[historieType] || historieType;
+
+  // Try snapshot first (auto-saved), then history
+  const [snapshot, history] = await Promise.all([
+    fbGet('historie_snapshot_' + type + '_' + dateKey),
+    fbGetHistory()
+  ]);
+
+  const relevantTypes = [type];
+  const historyEntries = history.filter(e => {
     const datum = e.datum ? e.datum.split('T')[0] : null;
     return datum === dateKey && relevantTypes.includes(e.type);
   });
 
-  const detail = document.getElementById('historieDagDetail');
-  if (!entries.length) { detail.style.display = 'none'; return; }
+  // Combine snapshot and history entries
+  const entries = [];
+  if (snapshot) entries.push(snapshot);
+  historyEntries.forEach(e => {
+    if (!entries.find(x => x.datum === e.datum)) entries.push(e);
+  });
+
+  if (!entries.length) {
+    detail.innerHTML = '<div class="empty-state"><div class="icon">📋</div>Geen data gevonden voor deze dag.</div>';
+    detail.style.display = 'block';
+    return;
+  }
 
   const dagNaam = new Date(dateKey + 'T12:00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
-  
+
   let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
     <p style="font-size:15px;font-weight:500;margin:0;">${dagNaam}</p>
     <button onclick="document.getElementById('historieDagDetail').style.display='none'" style="font-size:12px;padding:4px 10px;">✕ Sluiten</button>
@@ -2003,23 +2058,23 @@ window.toonDagDetail = async function(dateKey) {
 
   entries.forEach(e => {
     const timeStr = e.datum ? new Date(e.datum).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' }) : '';
-    
+    const pct = e.totaal > 0 ? Math.round(e.gedaan / e.totaal * 100) : 0;
+
     if (e.type === 'onderhoud') {
       html += `<div class="history-entry">
         <p style="font-size:13px;font-weight:500;margin:0 0 4px;">${e.taak}</p>
-        <p style="font-size:12px;color:var(--grijs-tekst);margin:0;">${timeStr} · ${e.door || ''} · ${e.freq || ''}</p>
+        <p style="font-size:12px;color:var(--grijs-tekst);margin:0;">${timeStr}${e.door ? ' · ' + e.door : ''} · ${e.freq || ''}</p>
       </div>`;
     } else {
-      const pct = e.totaal > 0 ? Math.round(e.gedaan / e.totaal * 100) : 0;
       const bySectie = {};
       (e.details || []).forEach(d => {
         if (!bySectie[d.sectie]) bySectie[d.sectie] = [];
         bySectie[d.sectie].push(d);
       });
-      
+
       html += `<div class="history-entry">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <p style="font-size:13px;font-weight:500;margin:0;">${e.door || 'Onbekend'} · ${timeStr}</p>
+          <p style="font-size:13px;font-weight:500;margin:0;">${e.door ? e.door + ' · ' : ''}${timeStr}</p>
           <span class="history-score${pct===100?' perfect':''}">${pct}% (${e.gedaan}/${e.totaal})</span>
         </div>
         ${e.opmerkingen ? `<p style="font-size:12px;background:#FEF3C7;padding:6px 8px;border-radius:6px;margin:0 0 8px;">💬 ${e.opmerkingen}</p>` : ''}
