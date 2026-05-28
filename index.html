@@ -1955,6 +1955,16 @@ window.renderHistorie = async function renderHistorie() {
   const relevantTypes = [type];
   const filtered = history.filter(e => relevantTypes.includes(e.type));
 
+  // Kalender variabelen eerst declareren
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  const year = historieViewDate.getFullYear();
+  const month = historieViewDate.getMonth();
+  const maanden = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  const firstDay = new Date(year, month, 1).getDay();
+  const startDay = firstDay === 0 ? 6 : firstDay - 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = getTodayKey();
+
   // Groepeer per datum — ook snapshots ophalen
   const perDatum = {};
   filtered.forEach(e => {
@@ -1978,14 +1988,6 @@ window.renderHistorie = async function renderHistorie() {
   await Promise.all(snapshotChecks);
 
   // Kalender bouwen
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
-  const year = historieViewDate.getFullYear();
-  const month = historieViewDate.getMonth();
-  const maanden = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
-  const firstDay = new Date(year, month, 1).getDay();
-  const startDay = firstDay === 0 ? 6 : firstDay - 1;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayKey = getTodayKey();
 
   let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
     <button onclick="historieViewDate.setMonth(historieViewDate.getMonth()-1);renderHistorie()" style="font-size:13px;padding:5px 12px;">← Vorige</button>
