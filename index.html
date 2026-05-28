@@ -763,7 +763,8 @@ const dagelijksTakenData = [
 
 // Seizoen check: is huidige maand binnen bereik?
 function isSeizoen(vanMaand, totMaand) {
-  const m = new Date().getMonth() + 1; // 1-12
+  const nlNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  const m = nlNow.getMonth() + 1;
   if (vanMaand <= totMaand) return m >= vanMaand && m <= totMaand;
   return m >= vanMaand || m <= totMaand;
 }
@@ -1449,7 +1450,8 @@ function renderDagelijks() {
   let total = 0, done = 0;
 
   // Remco taken voor vandaag bovenaan
-  const vandaagDag = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+  const nlNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  const vandaagDag = DAYS[nlNow.getDay() === 0 ? 6 : nlNow.getDay() - 1];
   const remcoVandaag = [];
   remcoTakenData.forEach((sectie, si) => {
     sectie.taken.forEach((taak, ti) => {
