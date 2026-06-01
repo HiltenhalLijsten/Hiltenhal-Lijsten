@@ -1921,7 +1921,7 @@ window.toggleHistoryDetail = function toggleHistoryDetail(id) {
 
 // ===== NIEUWE HISTORIE =====
 let historieType = 'opening';
-let historieViewDate = new Date();
+window.historieViewDate = new Date();
 
 window.setHistorieType = function(type) {
   historieType = type;
@@ -1957,8 +1957,8 @@ window.renderHistorie = async function renderHistorie() {
 
   // Kalender variabelen eerst declareren
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
-  const year = historieViewDate.getFullYear();
-  const month = historieViewDate.getMonth();
+  const year = window.historieViewDate.getFullYear();
+  const month = window.historieViewDate.getMonth();
   const maanden = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
   const firstDay = new Date(year, month, 1).getDay();
   const startDay = firstDay === 0 ? 6 : firstDay - 1;
@@ -1990,9 +1990,9 @@ window.renderHistorie = async function renderHistorie() {
   // Kalender bouwen
 
   let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-    <button onclick="historieViewDate.setMonth(historieViewDate.getMonth()-1);renderHistorie()" style="font-size:13px;padding:5px 12px;">← Vorige</button>
+    <button onclick="window.historieViewDate.setMonth(window.historieViewDate.getMonth()-1);renderHistorie()" style="font-size:13px;padding:5px 12px;">← Vorige</button>
     <p style="font-size:14px;font-weight:500;margin:0;">${maanden[month]} ${year}</p>
-    <button onclick="historieViewDate.setMonth(historieViewDate.getMonth()+1);renderHistorie()" style="font-size:13px;padding:5px 12px;">Volgende →</button>
+    <button onclick="window.historieViewDate.setMonth(window.historieViewDate.getMonth()+1);renderHistorie()" style="font-size:13px;padding:5px 12px;">Volgende →</button>
   </div>
   <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
     ${['Ma','Di','Wo','Do','Vr','Za','Zo'].map(d => `<div style="text-align:center;font-size:11px;font-weight:500;color:var(--grijs-tekst);padding:4px 0;">${d}</div>`).join('')}
