@@ -1431,9 +1431,11 @@ function autoSaveHistorie(takenData, state, stateKey, lijstNaam) {
     });
   });
   const type = lijstNaam === 'opening' ? 'opening' : lijstNaam === 'sluit' ? 'sluiting' : lijstNaam;
-  fbSet('historie_snapshot_' + type + '_' + getTodayKey(), {
+  const today = getTodayKey();
+  // Sla op als apart document per dag zodat we het kunnen overschrijven
+  fbSet('snap_' + type + '_' + today, {
     type, datum: new Date().toISOString(), gedaan: done, totaal: total, details, door: ''
-  });
+  }).catch(e => console.error('autoSaveHistorie fout:', e));
 }
 
 function renderOpening() {
@@ -1974,14 +1976,15 @@ window.renderHistorie = async function renderHistorie() {
     perDatum[datum].push(e);
   });
 
-  // Check snapshots voor huidige maand
+  // Check bestaande state documenten voor huidige maand
   const snapshotChecks = [];
   for (let d = 1; d <= daysInMonth; d++) {
     const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    snapshotChecks.push(fbGet('historie_snapshot_' + type + '_' + dateKey).then(snap => {
-      if (snap) {
+    const stateKey = type === 'sluiting' ? 'sluit_' + dateKey : type + '_' + dateKey;
+    snapshotChecks.push(fbGet(stateKey).then(snap => {
+      if (snap && Object.keys(snap).length > 0) {
         if (!perDatum[dateKey]) perDatum[dateKey] = [];
-        if (!perDatum[dateKey].find(x => x.datum === snap.datum)) perDatum[dateKey].push(snap);
+        if (!perDatum[dateKey].length) perDatum[dateKey].push({ type, datum: dateKey + 'T00:00:00', gedaan: Object.values(snap).filter(v => v === true).length, totaal: Object.keys(snap).length, details: [], _isState: true });
       }
     }));
   }
@@ -2029,8 +2032,9 @@ window.toonDagDetail = async function(dateKey) {
   const type = typeMap[historieType] || historieType;
 
   // Try snapshot first (auto-saved), then history
+  const stateDocKey = type === 'sluiting' ? 'sluit_' + dateKey : type + '_' + dateKey;
   const [snapshot, history] = await Promise.all([
-    fbGet('historie_snapshot_' + type + '_' + dateKey),
+    fbGet(stateDocKey),
     fbGetHistory()
   ]);
 
@@ -2040,9 +2044,24 @@ window.toonDagDetail = async function(dateKey) {
     return datum === dateKey && relevantTypes.includes(e.type);
   });
 
-  // Combine snapshot and history entries
   const entries = [];
-  if (snapshot) entries.push(snapshot);
+  if (snapshot && Object.keys(snapshot).length > 0) {
+    // Rebuild details from state + takenData
+    const takenData = type === 'opening' ? openingsTakenData : type === 'sluiting' ? sluitTakenData : sportveldTakenData;
+    let total = 0, done = 0;
+    const details = [];
+    takenData.forEach((s, si) => {
+      const stateKey = (type === 'sluiting' ? 'sluit' : type);
+      s.taken.forEach((taak, ti) => {
+        const key = stateKey + si + '_' + ti;
+        const isDone = !!snapshot[key];
+        total++;
+        if (isDone) done++;
+        details.push({ sectie: s.sectie, taak, gedaan: isDone });
+      });
+    });
+    entries.push({ type, datum: dateKey + 'T00:00:00', gedaan: done, totaal: total, details, door: '' });
+  }
   historyEntries.forEach(e => {
     if (!entries.find(x => x.datum === e.datum)) entries.push(e);
   });
