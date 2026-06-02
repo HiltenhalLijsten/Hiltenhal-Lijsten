@@ -1287,10 +1287,10 @@ async function init() {
 // ===== RENDER DAGELIJKS =====
 
 // Generic render function for opening/sluit lists
-function renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam) {
+function renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam, append = false) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  container.innerHTML = '';
+  if (!append) container.innerHTML = '';
   let total = 0, done = 0;
 
   takenData.forEach((sectie, si) => {
@@ -1477,15 +1477,15 @@ function renderAfvalSectie(container, state, stateKey, renderFn) {
 }
 
 function renderOpening() {
-  renderLijst(openingsTakenData, openingState, 'opening', 'openingTasks', 'progressText', 'progressBar', 'submitBtn', 'opening');
   const container = document.getElementById('openingTasks');
-  if (container) renderAfvalSectie(container, openingState, 'opening', renderOpening);
+  if (container) { container.innerHTML = ''; renderAfvalSectie(container, openingState, 'opening', renderOpening); }
+  renderLijst(openingsTakenData, openingState, 'opening', 'openingTasks', 'progressText', 'progressBar', 'submitBtn', 'opening', true);
 }
 
 function renderSluit() {
-  renderLijst(sluitTakenData, sluitState, 'sluit', 'sluitTasks', 'sluitProgressText', 'sluitProgressBar', 'sluitSubmitBtn', 'sluit');
   const container = document.getElementById('sluitTasks');
-  if (container) renderAfvalSectie(container, sluitState, 'sluit', renderSluit);
+  if (container) { container.innerHTML = ''; renderAfvalSectie(container, sluitState, 'sluit', renderSluit); }
+  renderLijst(sluitTakenData, sluitState, 'sluit', 'sluitTasks', 'sluitProgressText', 'sluitProgressBar', 'sluitSubmitBtn', 'sluit', true);
 }
 
 function renderDagelijks() {
