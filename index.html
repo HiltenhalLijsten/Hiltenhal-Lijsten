@@ -1438,12 +1438,54 @@ function autoSaveHistorie(takenData, state, stateKey, lijstNaam) {
   }).catch(e => console.error('autoSaveHistorie fout:', e));
 }
 
+function renderAfvalSectie(container, state, stateKey, renderFn) {
+  const todayKey = getTodayKey();
+  const afvalVandaag = afvalData[todayKey] || [];
+  if (afvalVandaag.length === 0) return { done: 0, total: 0 };
+
+  const sKey = stateKey + '_afval_today';
+  const collapsed = collapsedSections[sKey];
+  let sectieDone = 0;
+  afvalVandaag.forEach(c => { if (state['afval_' + c]) sectieDone++; });
+
+  const header = document.createElement('div');
+  header.className = 'section-header' + (collapsed ? ' collapsed' : '');
+  header.style.background = '#7C3AED';
+  header.innerHTML = `<span class="section-icon">🗑️</span>Containers aan straat
+    <span class="section-count-badge">${sectieDone}/${afvalVandaag.length}</span>
+    <span class="section-toggle">▼</span>`;
+  header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderFn(); };
+  container.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'task-list' + (collapsed ? ' collapsed' : '');
+  afvalVandaag.forEach(c => {
+    const key = 'afval_' + c;
+    const isDone = !!state[key];
+    const item = document.createElement('div');
+    item.className = 'task-item' + (isDone ? ' done' : '');
+    item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label">${CONTAINERS[c].label}container aan straat zetten</div>`;
+    item.onclick = () => {
+      state[key] = !state[key];
+      fbSet(stateKey + '_' + getTodayKey(), state);
+      renderFn();
+    };
+    list.appendChild(item);
+  });
+  container.appendChild(list);
+  return { done: sectieDone, total: afvalVandaag.length };
+}
+
 function renderOpening() {
   renderLijst(openingsTakenData, openingState, 'opening', 'openingTasks', 'progressText', 'progressBar', 'submitBtn', 'opening');
+  const container = document.getElementById('openingTasks');
+  if (container) renderAfvalSectie(container, openingState, 'opening', renderOpening);
 }
 
 function renderSluit() {
   renderLijst(sluitTakenData, sluitState, 'sluit', 'sluitTasks', 'sluitProgressText', 'sluitProgressBar', 'sluitSubmitBtn', 'sluit');
+  const container = document.getElementById('sluitTasks');
+  if (container) renderAfvalSectie(container, sluitState, 'sluit', renderSluit);
 }
 
 function renderDagelijks() {
