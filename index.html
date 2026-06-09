@@ -405,6 +405,18 @@
   .alert-warning .alert-banner-header { color: #92400E; }
   .alert-warning .alert-item { color: #78350F; }
   .alert-warning .alert-item .alert-days { background: #FEF3C7; }
+  /* Groot schrift modus */
+  body.groot-schrift .tab { font-size: 16px; padding: 14px 18px; }
+  body.groot-schrift .task-label { font-size: 18px; line-height: 1.5; }
+  body.groot-schrift .task-check { width: 28px; height: 28px; font-size: 18px; flex-shrink:0; }
+  body.groot-schrift .task-item { padding: 14px 16px; }
+  body.groot-schrift .section-header { font-size: 17px; padding: 14px 16px; }
+  body.groot-schrift .btn-primary { font-size: 18px; padding: 14px; }
+  body.groot-schrift select, body.groot-schrift textarea, body.groot-schrift input[type=text], body.groot-schrift input[type=password] { font-size: 18px !important; padding: 12px !important; }
+  body.groot-schrift .submit-box label { font-size: 16px; }
+  body.groot-schrift h3 { font-size: 20px; }
+  body.groot-schrift .history-entry { font-size: 16px; }
+  body.groot-schrift #grootBtn { background: rgba(255,255,255,0.35); }
 </style>
 </head>
 <body>
@@ -413,6 +425,7 @@
   <div class="logo-badge">HH</div>
   <h1>Hiltenhal – Portaal</h1>
   <span class="header-date" id="headerDate"></span>
+  <button id="grootBtn" onclick="toggleGrootSchrift()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:6px 10px;color:white;font-size:16px;cursor:pointer;margin-left:auto;" title="Grote letters aan/uit">🔤</button>
 </header>
 
 <div class="tabs">
@@ -1236,6 +1249,16 @@ function populateNaamDropdowns() {
     if (el) el.innerHTML = '<option value="">Kies je naam...</option>' + opties;
   });
 }
+window.toggleGrootSchrift = function() {
+  const isGroot = document.body.classList.toggle('groot-schrift');
+  localStorage.setItem('grootSchrift', isGroot ? '1' : '0');
+}
+
+// Herstel voorkeur bij laden
+if (localStorage.getItem('grootSchrift') === '1') {
+  document.body.classList.add('groot-schrift');
+}
+
 async function init() {
   document.getElementById('headerDate').textContent =
     new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
