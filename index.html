@@ -1499,15 +1499,78 @@ function renderAfvalSectie(container, state, stateKey, renderFn) {
   return { done: sectieDone, total: afvalVandaag.length };
 }
 
+function renderRemcoVandaag(container, herRender) {
+  const nlNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  const vandaagDag = DAYS[nlNow.getDay() === 0 ? 6 : nlNow.getDay() - 1];
+  const remcoVandaag = [];
+  remcoTakenData.forEach((sectie, si) => {
+    sectie.taken.forEach((taak, ti) => {
+      const key = si + '_' + ti;
+      const state = remcoState[key];
+      if (state && state.selected && state.dagen.includes(vandaagDag)) {
+        remcoVandaag.push({ taak: taak.naam, key: 'remco_' + key });
+      }
+    });
+  });
+  // Ook losse taken van Remco
+  (losTaken || []).forEach((t, i) => {
+    if (t.dag === vandaagDag) remcoVandaag.push({ taak: t.tekst, key: 'remco_los_' + i });
+  });
+
+  if (remcoVandaag.length === 0) return;
+
+  const sKey = 'remco_today';
+  const collapsed = collapsedSections[sKey];
+  let sectieDone = 0;
+  remcoVandaag.forEach(t => { if (dagelijksState[t.key]) sectieDone++; });
+
+  const header = document.createElement('div');
+  header.className = 'section-header' + (collapsed ? ' collapsed' : '');
+  header.style.background = '#1E3A5F';
+  header.innerHTML = `<span class="section-icon">📅</span>Extra taken vandaag (Remco)
+    <span class="section-count-badge">${sectieDone}/${remcoVandaag.length}</span>
+    <span class="section-progress">${Math.round(sectieDone/remcoVandaag.length*100)}%</span>
+    <span class="section-toggle">▼</span>`;
+  header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; herRender(); };
+  container.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'task-list' + (collapsed ? ' collapsed' : '');
+
+  remcoVandaag.forEach(t => {
+    const isDone = !!dagelijksState[t.key];
+    const item = document.createElement('div');
+    item.className = 'task-item' + (isDone ? ' done' : '');
+    item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label">${t.taak}</div>`;
+    item.onclick = () => {
+      dagelijksState[t.key] = !dagelijksState[t.key];
+      fbSet('dagelijks_' + getTodayKey(), dagelijksState);
+      // Herrender beide lijsten zodat staat gesynchroniseerd is
+      renderOpening();
+      renderSluit();
+    };
+    list.appendChild(item);
+  });
+  container.appendChild(list);
+}
+
 function renderOpening() {
   const container = document.getElementById('openingTasks');
-  if (container) { container.innerHTML = ''; renderAfvalSectie(container, openingState, 'opening', renderOpening); }
+  if (container) {
+    container.innerHTML = '';
+    renderAfvalSectie(container, openingState, 'opening', renderOpening);
+    renderRemcoVandaag(container, renderOpening);
+  }
   renderLijst(openingsTakenData, openingState, 'opening', 'openingTasks', 'progressText', 'progressBar', 'submitBtn', 'opening', true);
 }
 
 function renderSluit() {
   const container = document.getElementById('sluitTasks');
-  if (container) { container.innerHTML = ''; renderAfvalSectie(container, sluitState, 'sluit', renderSluit); }
+  if (container) {
+    container.innerHTML = '';
+    renderAfvalSectie(container, sluitState, 'sluit', renderSluit);
+    renderRemcoVandaag(container, renderSluit);
+  }
   renderLijst(sluitTakenData, sluitState, 'sluit', 'sluitTasks', 'sluitProgressText', 'sluitProgressBar', 'sluitSubmitBtn', 'sluit', true);
 }
 
