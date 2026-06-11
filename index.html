@@ -528,6 +528,11 @@
               <option value="">Kies dag</option>
               <option>Ma</option><option>Di</option><option>Wo</option><option>Do</option><option>Vr</option><option>Za</option><option>Zo</option>
             </select>
+            <select id="losTaakType" style="font-size:14px;padding:10px 12px;">
+              <option value="beide">Openen & Sluiten</option>
+              <option value="opening">Alleen Openen</option>
+              <option value="sluit">Alleen Sluiten</option>
+            </select>
             <button onclick="addLosTaak()" style="font-size:13px;padding:10px 14px;background:var(--donker);color:var(--wit);border:none;border-radius:8px;">+ Voeg toe</button>
           </div>
           <div id="losTakenLijst" style="display:flex;flex-direction:column;gap:6px;"></div>
@@ -1143,6 +1148,7 @@ function renderLosTaken() {
   container.innerHTML = losTaken.map((t, i) => `
     <div style="display:flex;align-items:center;gap:8px;background:var(--blauw-licht);border-radius:6px;padding:6px 10px;">
       <span style="font-size:12px;font-weight:500;background:#BFDBFE;color:#1E40AF;padding:2px 8px;border-radius:10px;">${t.dag}</span>
+      <span style="font-size:11px;background:#E0E7FF;color:#3730A3;padding:2px 6px;border-radius:10px;">${t.type === 'opening' ? '🌅' : t.type === 'sluit' ? '🌙' : '🌅🌙'}</span>
       <span style="font-size:13px;flex:1;color:var(--donker);">${t.tekst}</span>
       <button onclick="removeLosTaak(${i})" style="font-size:12px;color:var(--rood);background:none;border:none;cursor:pointer;">✕</button>
     </div>`).join('');
@@ -1151,8 +1157,9 @@ function renderLosTaken() {
 window.addLosTaak = function addLosTaak() {
   const tekst = document.getElementById('losTaakTekst').value.trim();
   const dag = document.getElementById('losTaakDag').value;
+  const type = document.getElementById('losTaakType').value;
   if (!tekst || !dag) { showToast('Vul een taak en dag in!'); return; }
-  losTaken.push({ tekst, dag });
+  losTaken.push({ tekst, dag, type });
   document.getElementById('losTaakTekst').value = '';
   document.getElementById('losTaakDag').value = '';
   renderLosTaken();
@@ -1512,9 +1519,16 @@ function renderRemcoVandaag(container, herRender) {
       }
     });
   });
-  // Ook losse taken van Remco
+  // Ook losse taken van Remco — filter op type
   (losTaken || []).forEach((t, i) => {
-    if (t.dag === vandaagDag) remcoVandaag.push({ taak: t.tekst, key: 'remco_los_' + i });
+    if (t.dag === vandaagDag) {
+      const tType = t.type || 'beide';
+      // Check of deze taak bij de huidige render (opening of sluit) hoort
+      const isOpening = herRender === renderOpening || herRender.toString().includes('renderOpening');
+      if (tType === 'beide' || (tType === 'opening' && isOpening) || (tType === 'sluit' && !isOpening)) {
+        remcoVandaag.push({ taak: t.tekst, key: 'remco_los_' + i });
+      }
+    }
   });
 
   if (remcoVandaag.length === 0) return;
