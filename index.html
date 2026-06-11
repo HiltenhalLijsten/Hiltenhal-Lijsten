@@ -1514,7 +1514,7 @@ function renderAfvalSectie(container, state, stateKey, renderFn) {
   return { done: sectieDone, total: afvalVandaag.length };
 }
 
-function renderRemcoVandaag(container, herRender) {
+function renderRemcoVandaag(container, herRender, lijstType) {
   const nlNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
   const vandaagDag = DAYS[nlNow.getDay() === 0 ? 6 : nlNow.getDay() - 1];
   const remcoVandaag = [];
@@ -1527,15 +1527,12 @@ function renderRemcoVandaag(container, herRender) {
       }
     });
   });
-  // Ook losse taken van Remco — filter op type
+  // Losse taken filteren op dag en type
   (losTaken || []).forEach((t, i) => {
-    if (t.dag === vandaagDag) {
-      const tType = t.type || 'beide';
-      // Check of deze taak bij de huidige render (opening of sluit) hoort
-      const isOpening = herRender === renderOpening || herRender.toString().includes('renderOpening');
-      if (tType === 'beide' || (tType === 'opening' && isOpening) || (tType === 'sluit' && !isOpening)) {
-        remcoVandaag.push({ taak: t.tekst, key: 'remco_los_' + i });
-      }
+    if (t.dag !== vandaagDag) return;
+    const tType = t.type || 'beide';
+    if (tType === 'beide' || tType === lijstType) {
+      remcoVandaag.push({ taak: t.tekst, key: 'remco_los_' + i });
     }
   });
 
@@ -1581,7 +1578,7 @@ function renderOpening() {
   if (container) {
     container.innerHTML = '';
     renderAfvalSectie(container, openingState, 'opening', renderOpening);
-    renderRemcoVandaag(container, renderOpening);
+    renderRemcoVandaag(container, renderOpening, 'opening');
   }
   renderLijst(openingsTakenData, openingState, 'opening', 'openingTasks', 'progressText', 'progressBar', 'submitBtn', 'opening', true);
 }
@@ -1591,7 +1588,7 @@ function renderSluit() {
   if (container) {
     container.innerHTML = '';
     renderAfvalSectie(container, sluitState, 'sluit', renderSluit);
-    renderRemcoVandaag(container, renderSluit);
+    renderRemcoVandaag(container, renderSluit, 'sluit');
   }
   renderLijst(sluitTakenData, sluitState, 'sluit', 'sluitTasks', 'sluitProgressText', 'sluitProgressBar', 'sluitSubmitBtn', 'sluit', true);
 }
