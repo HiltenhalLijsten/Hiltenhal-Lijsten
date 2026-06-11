@@ -1154,7 +1154,7 @@ function renderLosTaken() {
     </div>`).join('');
 }
 
-window.addLosTaak = function addLosTaak() {
+window.addLosTaak = async function addLosTaak() {
   const tekst = document.getElementById('losTaakTekst').value.trim();
   const dag = document.getElementById('losTaakDag').value;
   const type = document.getElementById('losTaakType').value;
@@ -1162,12 +1162,18 @@ window.addLosTaak = function addLosTaak() {
   losTaken.push({ tekst, dag, type });
   document.getElementById('losTaakTekst').value = '';
   document.getElementById('losTaakDag').value = '';
+  await fbSet('remco_los_taken_' + getThisWeekKey(), losTaken);
   renderLosTaken();
+  renderOpening();
+  renderSluit();
 }
 
-window.removeLosTaak = function removeLosTaak(i) {
+window.removeLosTaak = async function removeLosTaak(i) {
   losTaken.splice(i, 1);
+  await fbSet('remco_los_taken_' + getThisWeekKey(), losTaken);
   renderLosTaken();
+  renderOpening();
+  renderSluit();
 }
 let collapsedSections = {};
 
@@ -1271,7 +1277,7 @@ async function init() {
     new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 
   try {
-    const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster, savedAfval, savedLijsten, savedNamen, savedPin, savedOpening, savedSluit] = await Promise.all([
+    const [savedDag, savedSport, savedOnderhoud, savedRemco, savedBeheer, savedRooster, savedAfval, savedLijsten, savedNamen, savedPin, savedOpening, savedSluit, savedLosTaken] = await Promise.all([
       fbGet('dagelijks_' + getTodayKey()),
       fbGet('sportveld_' + getTodayKey()),
       fbGet('onderhoud_state'),
@@ -1283,7 +1289,8 @@ async function init() {
       fbGet('rooster_namen'),
       fbGet('remco_pin'),
       fbGet('opening_' + getTodayKey()),
-      fbGet('sluit_' + getTodayKey())
+      fbGet('sluit_' + getTodayKey()),
+      fbGet('remco_los_taken_' + getThisWeekKey())
     ]);
 
     if (savedDag) dagelijksState = savedDag;
@@ -1298,6 +1305,7 @@ async function init() {
     if (savedPin && savedPin.pin) sessionStorage.setItem('remcoPin', savedPin.pin);
     if (savedOpening) openingState = savedOpening;
     if (savedSluit) sluitState = savedSluit;
+    if (savedLosTaken) { losTaken = savedLosTaken; renderLosTaken(); }
 
     await loadVorigeOpmerkingen();
     populateNaamDropdowns();
@@ -1921,8 +1929,6 @@ window.saveWeekplan = function saveWeekplan() {
   if (!Object.values(byDay).some(arr => arr.length > 0) && losTaken.length === 0) { showToast('Selecteer eerst taken!'); return; }
   saveToHistory({ type: 'weekplan', weekKey: getThisWeekKey(), datum: new Date().toISOString(), door: 'Remco', taken: byDay });
   fbSet('remco_' + getThisWeekKey(), remcoState);
-  losTaken = [];
-  renderLosTaken();
   showToast('Weekplan opgeslagen! ✓');
 }
 
