@@ -1546,7 +1546,7 @@ function renderRemcoVandaag(container, herRender, lijstType) {
   const header = document.createElement('div');
   header.className = 'section-header' + (collapsed ? ' collapsed' : '');
   header.style.background = '#1E3A5F';
-  header.innerHTML = `<span class="section-icon">📅</span>Extra taken vandaag (Remco)
+  header.innerHTML = `<span class="section-icon">📅</span>Extra taken voor vandaag
     <span class="section-count-badge">${sectieDone}/${remcoVandaag.length}</span>
     <span class="section-progress">${Math.round(sectieDone/remcoVandaag.length*100)}%</span>
     <span class="section-toggle">▼</span>`;
@@ -1621,7 +1621,7 @@ function renderDagelijks() {
     const header = document.createElement('div');
     header.className = 'section-header' + (collapsed ? ' collapsed' : '');
     header.style.background = '#1E3A5F';
-    header.innerHTML = `<span class="section-icon">📅</span>Extra taken vandaag (Remco)
+    header.innerHTML = `<span class="section-icon">📅</span>Extra taken voor vandaag
       <span class="section-count-badge">${sectieDone}/${remcoVandaag.length}</span>
       <span class="section-progress">${Math.round(sectieDone/remcoVandaag.length*100)}%</span>
       <span class="section-toggle">▼</span>`;
