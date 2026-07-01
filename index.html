@@ -2722,20 +2722,46 @@ window.verplaatsSectie = async function(lijst, sectieNaam, richting) {
   showToast('Volgorde aangepast!');
 }
 
-window.verplaatsTaak = async function(lijst, sectie, taakNaam, richting) {
+window.verplaatsTaak = async function(lijst, sectie, hernoemdNaam, richting) {
   if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
   if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
-  if (!lijstenAanpassingen[lijst][sectie]._taakVolgorde) {
+  
+  const sectieAanp = lijstenAanpassingen[lijst][sectie];
+  
+  // Initialiseer volgorde als die er nog niet is — inclusief extra taken
+  if (!sectieAanp._taakVolgorde) {
     const data = getLijstData(lijst);
     const s = data.find(s => s.sectie === sectie);
-    lijstenAanpassingen[lijst][sectie]._taakVolgorde = s ? [...s.taken] : [];
+    const baseTaken = s ? [...s.taken] : [];
+    const extraTaken = sectieAanp.extra || [];
+    sectieAanp._taakVolgorde = [...baseTaken, ...extraTaken];
+  } else {
+    // Voeg eventuele nieuwe extra taken toe die nog niet in de volgorde staan
+    const extraTaken = sectieAanp.extra || [];
+    extraTaken.forEach(t => {
+      if (!sectieAanp._taakVolgorde.includes(t)) sectieAanp._taakVolgorde.push(t);
+    });
   }
-  const volgorde = lijstenAanpassingen[lijst][sectie]._taakVolgorde;
-  const idx = volgorde.indexOf(taakNaam);
-  if (idx === -1) return;
+  
+  // Zoek de originele naam (hernoemdNaam kan een alias zijn)
+  const hernoemdTaken = sectieAanp.hernoemdTaken || {};
+  const origineleNamen = sectieAanp._taakVolgorde;
+  
+  // Zoek in originele namen eerst, dan via hernoemd mapping
+  let idx = origineleNamen.indexOf(hernoemdNaam);
+  if (idx === -1) {
+    // Zoek de originele naam die hernoemd is naar hernoemdNaam
+    const origineel = Object.keys(hernoemdTaken).find(k => hernoemdTaken[k] === hernoemdNaam);
+    if (origineel) idx = origineleNamen.indexOf(origineel);
+  }
+  if (idx === -1) {
+    showToast('Taak niet gevonden in volgorde');
+    return;
+  }
+  
   const nieuweIdx = idx + richting;
-  if (nieuweIdx < 0 || nieuweIdx >= volgorde.length) return;
-  [volgorde[idx], volgorde[nieuweIdx]] = [volgorde[nieuweIdx], volgorde[idx]];
+  if (nieuweIdx < 0 || nieuweIdx >= origineleNamen.length) return;
+  [origineleNamen[idx], origineleNamen[nieuweIdx]] = [origineleNamen[nieuweIdx], origineleNamen[idx]];
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
   renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
