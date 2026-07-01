@@ -1360,7 +1360,12 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
       <span class="section-count-badge">${sectieDone}/${alleTaken.length}</span>
       <span class="section-progress">${Math.round(sectieDone/alleTaken.length*100)}%</span>
       <span class="section-toggle">▼</span>`;
-    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam); };
+    header.onclick = () => { 
+      collapsedSections[sKey] = !collapsedSections[sKey]; 
+      if (lijstNaam === 'opening') renderOpening();
+      else if (lijstNaam === 'sluit') renderSluit();
+      else renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam);
+    };
     container.appendChild(header);
 
     const list = document.createElement('div');
@@ -1375,9 +1380,10 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
       item.onclick = () => {
         state[key] = !state[key];
         fbSet(stateKey + '_' + getTodayKey(), state);
-        // Auto-save snapshot to history
         autoSaveHistorie(takenData, state, stateKey, lijstNaam);
-        renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam);
+        if (lijstNaam === 'opening') renderOpening();
+        else if (lijstNaam === 'sluit') renderSluit();
+        else renderLijst(takenData, state, stateKey, containerId, progressTextId, progressBarId, submitBtnId, lijstNaam);
       };
       list.appendChild(item);
     });
