@@ -2653,8 +2653,8 @@ function renderLijstenBeheer() {
         const hernoemdNaam = (sectieAanp.hernoemdTaken || {})[taakNaam] || taakNaam;
         return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--grijs-mid);flex-wrap:wrap;">
           <input type="text" value="${hernoemdNaam}" style="font-size:12px;flex:1;min-width:100px;padding:3px 6px;border:1px solid var(--grijs-mid);border-radius:5px;${isVerborgen?'opacity:0.4;text-decoration:line-through;':''}" onchange="hernoemTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',this.value)">
-          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}' ,-1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omhoog">↑</button>
-          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}' ,1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omlaag">↓</button>
+          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' ,${ti},-1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omhoog">↑</button>
+          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' ,${ti},1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omlaag">↓</button>
           <button onclick="toggleTaakZichtbaar('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',${isVerborgen})" style="font-size:11px;padding:3px 7px;border-radius:5px;background:${isVerborgen?'var(--groen-licht)':'#FEE2E2'};color:${isVerborgen?'var(--groen)':'var(--rood)'};border:none;">${isVerborgen?'👁️':'🚫'}</button>
           ${isExtra ? `<button onclick="verwijderExtraTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}') " style="font-size:11px;padding:3px 6px;border-radius:5px;color:var(--rood);background:none;border:none;">✕</button>` : ''}
         </div>`;
@@ -2722,46 +2722,26 @@ window.verplaatsSectie = async function(lijst, sectieNaam, richting) {
   showToast('Volgorde aangepast!');
 }
 
-window.verplaatsTaak = async function(lijst, sectie, hernoemdNaam, richting) {
+window.verplaatsTaak = async function(lijst, sectie, ti, richting) {
   if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
   if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
-  
   const sectieAanp = lijstenAanpassingen[lijst][sectie];
-  
-  // Initialiseer volgorde als die er nog niet is — inclusief extra taken
-  if (!sectieAanp._taakVolgorde) {
-    const data = getLijstData(lijst);
-    const s = data.find(s => s.sectie === sectie);
-    const baseTaken = s ? [...s.taken] : [];
-    const extraTaken = sectieAanp.extra || [];
+
+  // Bouw de huidige volgorde op zoals weergegeven
+  const data = getLijstData(lijst);
+  const s = data.find(s => s.sectie === sectie);
+  const baseTaken = s ? [...s.taken] : [];
+  const extraTaken = sectieAanp.extra || [];
+
+  // Gebruik bestaande volgorde of maak nieuwe aan
+  if (!sectieAanp._taakVolgorde || sectieAanp._taakVolgorde.length !== baseTaken.length + extraTaken.length) {
     sectieAanp._taakVolgorde = [...baseTaken, ...extraTaken];
-  } else {
-    // Voeg eventuele nieuwe extra taken toe die nog niet in de volgorde staan
-    const extraTaken = sectieAanp.extra || [];
-    extraTaken.forEach(t => {
-      if (!sectieAanp._taakVolgorde.includes(t)) sectieAanp._taakVolgorde.push(t);
-    });
   }
-  
-  // Zoek de originele naam (hernoemdNaam kan een alias zijn)
-  const hernoemdTaken = sectieAanp.hernoemdTaken || {};
-  const origineleNamen = sectieAanp._taakVolgorde;
-  
-  // Zoek in originele namen eerst, dan via hernoemd mapping
-  let idx = origineleNamen.indexOf(hernoemdNaam);
-  if (idx === -1) {
-    // Zoek de originele naam die hernoemd is naar hernoemdNaam
-    const origineel = Object.keys(hernoemdTaken).find(k => hernoemdTaken[k] === hernoemdNaam);
-    if (origineel) idx = origineleNamen.indexOf(origineel);
-  }
-  if (idx === -1) {
-    showToast('Taak niet gevonden in volgorde');
-    return;
-  }
-  
-  const nieuweIdx = idx + richting;
-  if (nieuweIdx < 0 || nieuweIdx >= origineleNamen.length) return;
-  [origineleNamen[idx], origineleNamen[nieuweIdx]] = [origineleNamen[nieuweIdx], origineleNamen[idx]];
+
+  const volgorde = sectieAanp._taakVolgorde;
+  const nieuweIdx = ti + richting;
+  if (nieuweIdx < 0 || nieuweIdx >= volgorde.length) return;
+  [volgorde[ti], volgorde[nieuweIdx]] = [volgorde[nieuweIdx], volgorde[ti]];
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
   renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
