@@ -1342,7 +1342,15 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
     const seizoen = aanp.seizoen || sectie.seizoen;
     if (seizoen && !isSeizoen(seizoen.van, seizoen.tot)) return;
     const hernoemdTaken = aanp.hernoemdTaken || {};
-    const alleTaken = [...sectie.taken.filter(t => !(aanp.verborgen || []).includes(t)), ...(aanp.extra || [])]
+    const taakVolgorde = aanp._taakVolgorde;
+    const baseTaken = taakVolgorde
+      ? [...sectie.taken].sort((a, b) => {
+          const ia = taakVolgorde.indexOf(a);
+          const ib = taakVolgorde.indexOf(b);
+          return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+        })
+      : sectie.taken;
+    const alleTaken = [...baseTaken.filter(t => !(aanp.verborgen || []).includes(t)), ...(aanp.extra || [])]
       .map(t => hernoemdTaken[t] || t);
     let sectieDone = 0;
 
@@ -2578,14 +2586,33 @@ function renderLijstenBeheer() {
   const data = getLijstData(activeLijst);
   const aanp = lijstenAanpassingen[activeLijst] || {};
 
+  // Pas opgeslagen sectievolgorde toe
+  const volgorde = aanp._volgorde;
+  const gesorteerdeData = volgorde
+    ? [...data].sort((a, b) => {
+        const ia = volgorde.indexOf(a.sectie);
+        const ib = volgorde.indexOf(b.sectie);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      })
+    : data;
+
   const extraSecties = Object.entries(aanp)
-    .filter(([naam, val]) => val.isNieuwe)
+    .filter(([naam, val]) => val && val.isNieuwe)
     .map(([naam]) => ({ sectie: naam, taken: [] }));
-  const alleSecties = [...data, ...extraSecties];
+  const alleSecties = [...gesorteerdeData, ...extraSecties];
 
   alleSecties.forEach((sectie, si) => {
     const sectieAanp = aanp[sectie.sectie] || { verborgen: [], extra: [] };
-    const alleTaken = [...sectie.taken, ...(sectieAanp.extra || [])];
+    // Pas opgeslagen taakvolgorde toe
+    const taakVolgorde = sectieAanp._taakVolgorde;
+    const baseTaken = taakVolgorde
+      ? [...sectie.taken].sort((a, b) => {
+          const ia = taakVolgorde.indexOf(a);
+          const ib = taakVolgorde.indexOf(b);
+          return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+        })
+      : sectie.taken;
+    const alleTaken = [...baseTaken, ...(sectieAanp.extra || [])];
     const isNieuwe = sectieAanp.isNieuwe;
     const sectieNaamKey = sectie.sectie.replace(/'/g,"\\'").replace(/\s/g,'_');
     const huidigeNaam = sectieAanp.hernoemd || sectie.sectie;
