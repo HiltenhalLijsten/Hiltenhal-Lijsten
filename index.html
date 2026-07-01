@@ -1342,21 +1342,14 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
     const seizoen = aanp.seizoen || sectie.seizoen;
     if (seizoen && !isSeizoen(seizoen.van, seizoen.tot)) return;
     const hernoemdTaken = aanp.hernoemdTaken || {};
-    let alleTaken;
-    if (aanp._taakVolgorde && aanp._taakVolgorde.length > 0) {
-      alleTaken = aanp._taakVolgorde
-        .filter(t => sectie.taken.includes(t) || (aanp.extra || []).includes(t))
-        .filter(t => !(aanp.verborgen || []).includes(t))
-        .map(t => hernoemdTaken[t] || t);
-      // Voeg toe die nog niet in volgorde staan
-      const inVolgorde = new Set(aanp._taakVolgorde);
-      [...sectie.taken, ...(aanp.extra || [])].forEach(t => {
-        if (!inVolgorde.has(t) && !(aanp.verborgen || []).includes(t)) alleTaken.push(hernoemdTaken[t] || t);
-      });
-    } else {
-      alleTaken = [...sectie.taken.filter(t => !(aanp.verborgen || []).includes(t)), ...(aanp.extra || [])]
-        .map(t => hernoemdTaken[t] || t);
-    }
+    const alleTakenOrigineel = [...sectie.taken, ...(aanp.extra || [])];
+    const ids = (aanp._ids && aanp._ids.length >= alleTakenOrigineel.length)
+      ? aanp._ids
+      : alleTakenOrigineel.map((_, i) => i);
+    const alleTaken = ids
+      .map(id => alleTakenOrigineel[id])
+      .filter(t => t !== undefined && !(aanp.verborgen || []).includes(t))
+      .map(t => hernoemdTaken[t] || t);
     let sectieDone = 0;
 
     alleTaken.forEach((taak, ti) => {
@@ -2611,20 +2604,16 @@ function renderLijstenBeheer() {
     const sectieAanp = aanp[sectie.sectie] || { verborgen: [], extra: [] };
     const hernoemdTaken = sectieAanp.hernoemdTaken || {};
     const isNieuwe = sectieAanp.isNieuwe;
-    
-    // Bouw alleTaken op — gebruik _taakVolgorde als die bestaat, anders originele volgorde
-    let alleTaken;
-    if (sectieAanp._taakVolgorde && sectieAanp._taakVolgorde.length > 0) {
-      // Gebruik opgeslagen volgorde, voeg ontbrekende taken toe aan het einde
-      const bestaande = new Set(sectieAanp._taakVolgorde);
-      const alleOrigineel = [...sectie.taken, ...(sectieAanp.extra || [])];
-      alleOrigineel.forEach(t => { if (!bestaande.has(t)) sectieAanp._taakVolgorde.push(t); });
-      alleTaken = sectieAanp._taakVolgorde.filter(t => 
-        sectie.taken.includes(t) || (sectieAanp.extra || []).includes(t)
-      );
-    } else {
-      alleTaken = [...sectie.taken, ...(sectieAanp.extra || [])];
+
+    // ID-gebaseerde volgorde
+    const alleTakenOrigineel = [...sectie.taken, ...(sectieAanp.extra || [])];
+    if (!sectieAanp._ids || sectieAanp._ids.length < alleTakenOrigineel.length) {
+      const bestaand = sectieAanp._ids || [];
+      while (bestaand.length < alleTakenOrigineel.length) bestaand.push(bestaand.length);
+      sectieAanp._ids = bestaand;
     }
+    const alleTaken = sectieAanp._ids.map(id => alleTakenOrigineel[id]).filter(t => t !== undefined);
+
     const sectieNaamKey = sectie.sectie.replace(/'/g,"\\'").replace(/\s/g,'_');
     const huidigeNaam = sectieAanp.hernoemd || sectie.sectie;
     
@@ -2640,7 +2629,7 @@ function renderLijstenBeheer() {
         <input type="text" value="${huidigeNaam}" id="sectienaam_${si}" style="font-size:13px;font-weight:500;flex:1;min-width:120px;padding:4px 8px;border:1px solid var(--grijs-mid);border-radius:6px;" onchange="hernoemSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',this.value)">
         <button onclick="verplaatsSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' ,-1)" style="font-size:12px;padding:4px 8px;border-radius:6px;" title="Omhoog">↑</button>
         <button onclick="verplaatsSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' ,1)" style="font-size:12px;padding:4px 8px;border-radius:6px;" title="Omlaag">↓</button>
-        ${isNieuwe ? `<button onclick="verwijderSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' )" style="font-size:11px;padding:4px 8px;color:var(--rood);background:#FEE2E2;border:none;border-radius:6px;">🗑️</button>` : ''}
+        ${sectieAanp.isNieuwe ? `<button onclick="verwijderSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' )" style="font-size:11px;padding:4px 8px;color:var(--rood);background:#FEE2E2;border:none;border-radius:6px;">🗑️</button>` : ''}
       </div>
 
       <!-- Seizoen instelling -->
@@ -2739,31 +2728,20 @@ window.verplaatsTaak = async function(lijst, sectie, ti, richting) {
   if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
   const sectieAanp = lijstenAanpassingen[lijst][sectie];
 
-  // Bouw de huidige alleTaken op precies zoals in de UI
-  let alleTaken;
-  if (sectieAanp._taakVolgorde && sectieAanp._taakVolgorde.length > 0) {
-    const data = getLijstData(lijst);
-    const s = data.find(s => s.sectie === sectie);
-    alleTaken = sectieAanp._taakVolgorde.filter(t =>
-      (s ? s.taken.includes(t) : false) || (sectieAanp.extra || []).includes(t)
-    );
-    // Voeg ontbrekende toe
-    const inVolgorde = new Set(sectieAanp._taakVolgorde);
-    [...(s ? s.taken : []), ...(sectieAanp.extra || [])].forEach(t => {
-      if (!inVolgorde.has(t)) alleTaken.push(t);
-    });
-  } else {
-    const data = getLijstData(lijst);
-    const s = data.find(s => s.sectie === sectie);
-    alleTaken = [...(s ? s.taken : []), ...(sectieAanp.extra || [])];
+  // Initialiseer IDs als die er nog niet zijn
+  const data = getLijstData(lijst);
+  const s = data.find(s => s.sectie === sectie);
+  const alleTakenOrigineel = [...(s ? s.taken : []), ...(sectieAanp.extra || [])];
+  if (!sectieAanp._ids || sectieAanp._ids.length < alleTakenOrigineel.length) {
+    const bestaand = sectieAanp._ids || [];
+    while (bestaand.length < alleTakenOrigineel.length) bestaand.push(bestaand.length);
+    sectieAanp._ids = bestaand;
   }
 
+  const ids = sectieAanp._ids;
   const nieuweIdx = ti + richting;
-  if (ti < 0 || ti >= alleTaken.length || nieuweIdx < 0 || nieuweIdx >= alleTaken.length) return;
-  [alleTaken[ti], alleTaken[nieuweIdx]] = [alleTaken[nieuweIdx], alleTaken[ti]];
-  
-  // Sla de nieuwe volgorde op
-  sectieAanp._taakVolgorde = alleTaken;
+  if (ti < 0 || ti >= ids.length || nieuweIdx < 0 || nieuweIdx >= ids.length) return;
+  [ids[ti], ids[nieuweIdx]] = [ids[nieuweIdx], ids[ti]];
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
   renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
