@@ -2727,18 +2727,25 @@ window.verplaatsTaak = async function(lijst, sectie, ti, richting) {
   if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
   const sectieAanp = lijstenAanpassingen[lijst][sectie];
 
-  // Bouw de huidige volgorde op zoals weergegeven
+  // Bouw altijd de huidige volledige takenlijst op zoals weergegeven in de UI
   const data = getLijstData(lijst);
   const s = data.find(s => s.sectie === sectie);
   const baseTaken = s ? [...s.taken] : [];
   const extraTaken = sectieAanp.extra || [];
+  const alleTakenNu = [...baseTaken, ...extraTaken];
 
-  // Gebruik bestaande volgorde of maak nieuwe aan
-  if (!sectieAanp._taakVolgorde || sectieAanp._taakVolgorde.length !== baseTaken.length + extraTaken.length) {
-    sectieAanp._taakVolgorde = [...baseTaken, ...extraTaken];
+  // Zet _taakVolgorde altijd gelijk aan de huidige weergegeven volgorde als die er niet is
+  if (!sectieAanp._taakVolgorde || sectieAanp._taakVolgorde.length === 0) {
+    sectieAanp._taakVolgorde = [...alleTakenNu];
   }
 
+  // Voeg nieuwe taken toe die er nog niet in staan
+  alleTakenNu.forEach(t => {
+    if (!sectieAanp._taakVolgorde.includes(t)) sectieAanp._taakVolgorde.push(t);
+  });
+
   const volgorde = sectieAanp._taakVolgorde;
+  if (ti < 0 || ti >= volgorde.length) return;
   const nieuweIdx = ti + richting;
   if (nieuweIdx < 0 || nieuweIdx >= volgorde.length) return;
   [volgorde[ti], volgorde[nieuweIdx]] = [volgorde[nieuweIdx], volgorde[ti]];
