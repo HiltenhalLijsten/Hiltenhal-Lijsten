@@ -2627,8 +2627,8 @@ function renderLijstenBeheer() {
       <!-- Sectie header met naam bewerken -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
         <input type="text" value="${huidigeNaam}" id="sectienaam_${si}" style="font-size:13px;font-weight:500;flex:1;min-width:120px;padding:4px 8px;border:1px solid var(--grijs-mid);border-radius:6px;" onchange="hernoemSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',this.value)">
-        <button onclick="verplaatsSectie('${activeLijst}',${si},-1)" style="font-size:12px;padding:4px 8px;border-radius:6px;" title="Omhoog">↑</button>
-        <button onclick="verplaatsSectie('${activeLijst}',${si},1)" style="font-size:12px;padding:4px 8px;border-radius:6px;" title="Omlaag">↓</button>
+        <button onclick="verplaatsSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' ,-1)" style="font-size:12px;padding:4px 8px;border-radius:6px;" title="Omhoog">↑</button>
+        <button onclick="verplaatsSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' ,1)" style="font-size:12px;padding:4px 8px;border-radius:6px;" title="Omlaag">↓</button>
         ${isNieuwe ? `<button onclick="verwijderSectie('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' )" style="font-size:11px;padding:4px 8px;color:var(--rood);background:#FEE2E2;border:none;border-radius:6px;">🗑️</button>` : ''}
       </div>
 
@@ -2653,8 +2653,8 @@ function renderLijstenBeheer() {
         const hernoemdNaam = (sectieAanp.hernoemdTaken || {})[taakNaam] || taakNaam;
         return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--grijs-mid);flex-wrap:wrap;">
           <input type="text" value="${hernoemdNaam}" style="font-size:12px;flex:1;min-width:100px;padding:3px 6px;border:1px solid var(--grijs-mid);border-radius:5px;${isVerborgen?'opacity:0.4;text-decoration:line-through;':''}" onchange="hernoemTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',this.value)">
-          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},-1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omhoog">↑</button>
-          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omlaag">↓</button>
+          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}' ,-1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omhoog">↑</button>
+          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}' ,1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omlaag">↓</button>
           <button onclick="toggleTaakZichtbaar('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',${isVerborgen})" style="font-size:11px;padding:3px 7px;border-radius:5px;background:${isVerborgen?'var(--groen-licht)':'#FEE2E2'};color:${isVerborgen?'var(--groen)':'var(--rood)'};border:none;">${isVerborgen?'👁️':'🚫'}</button>
           ${isExtra ? `<button onclick="verwijderExtraTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}') " style="font-size:11px;padding:3px 6px;border-radius:5px;color:var(--rood);background:none;border:none;">✕</button>` : ''}
         </div>`;
@@ -2700,21 +2700,29 @@ window.hernoemTaak = async function(lijst, sectie, oudNaam, nieuwNaam) {
   showToast('Taaknaam gewijzigd!');
 }
 
-window.verplaatsSectie = async function(lijst, idx, richting) {
+window.verplaatsSectie = async function(lijst, sectieNaam, richting) {
   if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
   if (!lijstenAanpassingen[lijst]._volgorde) {
     lijstenAanpassingen[lijst]._volgorde = getLijstData(lijst).map(s => s.sectie);
   }
   const volgorde = lijstenAanpassingen[lijst]._volgorde;
+  const idx = volgorde.indexOf(sectieNaam);
+  if (idx === -1) {
+    // Sectie nog niet in volgorde, voeg alle secties toe eerste
+    const alleNamen = getLijstData(lijst).map(s => s.sectie);
+    lijstenAanpassingen[lijst]._volgorde = alleNamen;
+    return;
+  }
   const nieuweIdx = idx + richting;
   if (nieuweIdx < 0 || nieuweIdx >= volgorde.length) return;
   [volgorde[idx], volgorde[nieuweIdx]] = [volgorde[nieuweIdx], volgorde[idx]];
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
   renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
+  showToast('Volgorde aangepast!');
 }
 
-window.verplaatsTaak = async function(lijst, sectie, idx, richting) {
+window.verplaatsTaak = async function(lijst, sectie, taakNaam, richting) {
   if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
   if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
   if (!lijstenAanpassingen[lijst][sectie]._taakVolgorde) {
@@ -2723,12 +2731,15 @@ window.verplaatsTaak = async function(lijst, sectie, idx, richting) {
     lijstenAanpassingen[lijst][sectie]._taakVolgorde = s ? [...s.taken] : [];
   }
   const volgorde = lijstenAanpassingen[lijst][sectie]._taakVolgorde;
+  const idx = volgorde.indexOf(taakNaam);
+  if (idx === -1) return;
   const nieuweIdx = idx + richting;
   if (nieuweIdx < 0 || nieuweIdx >= volgorde.length) return;
   [volgorde[idx], volgorde[nieuweIdx]] = [volgorde[nieuweIdx], volgorde[idx]];
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
   renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
+  showToast('Volgorde aangepast!');
 }
 
 window.updateSeizoen = async function(lijst, sectie, veld, waarde) {
