@@ -1599,7 +1599,7 @@ function renderSluit() {
   renderLijst(sluitTakenData, sluitState, 'sluit', 'sluitTasks', 'sluitProgressText', 'sluitProgressBar', 'sluitSubmitBtn', 'sluit', true);
 }
 
-function renderDagelijks() {
+function renderOpening(); renderSluit() {
   const container = document.getElementById('dagelijksTasks');
   container.innerHTML = '';
   let total = 0, done = 0;
@@ -1631,7 +1631,7 @@ function renderDagelijks() {
       <span class="section-count-badge">${sectieDone}/${remcoVandaag.length}</span>
       <span class="section-progress">${Math.round(sectieDone/remcoVandaag.length*100)}%</span>
       <span class="section-toggle">▼</span>`;
-    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderDagelijks(); };
+    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; herRender(); };
     container.appendChild(header);
 
     const list = document.createElement('div');
@@ -1639,15 +1639,14 @@ function renderDagelijks() {
 
     remcoVandaag.forEach(t => {
       const isDone = !!dagelijksState[t.key];
-      if (isDone) done++;
-      total++;
       const item = document.createElement('div');
       item.className = 'task-item' + (isDone ? ' done' : '');
       item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label">${t.taak}</div>`;
       item.onclick = () => {
         dagelijksState[t.key] = !dagelijksState[t.key];
         fbSet('dagelijks_' + getTodayKey(), dagelijksState);
-        renderDagelijks();
+        renderOpening();
+        renderSluit();
       };
       list.appendChild(item);
     });
@@ -1669,7 +1668,7 @@ function renderDagelijks() {
     header.innerHTML = `<span class="section-icon">🗑️</span>Containers aan straat
       <span class="section-count-badge">${sectieDone}/${afvalVandaag.length}</span>
       <span class="section-toggle">▼</span>`;
-    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderDagelijks(); };
+    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderOpening(); renderSluit(); };
     container.appendChild(header);
 
     const list = document.createElement('div');
@@ -1685,7 +1684,7 @@ function renderDagelijks() {
       item.onclick = () => {
         dagelijksState[key] = !dagelijksState[key];
         fbSet('dagelijks_' + getTodayKey(), dagelijksState);
-        renderDagelijks();
+        renderOpening(); renderSluit();
       };
       list.appendChild(item);
     });
@@ -1713,7 +1712,7 @@ function renderDagelijks() {
       <span class="section-count-badge">${sectieDone}/${alleTaken.length}</span>
       <span class="section-progress">${Math.round(sectieDone/alleTaken.length*100)}%</span>
       <span class="section-toggle">▼</span>`;
-    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderDagelijks(); };
+    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderOpening(); renderSluit(); };
     container.appendChild(header);
 
     const list = document.createElement('div');
@@ -1728,7 +1727,7 @@ function renderDagelijks() {
       item.onclick = () => {
         dagelijksState[key] = !dagelijksState[key];
         fbSet('dagelijks_' + getTodayKey(), dagelijksState);
-        renderDagelijks();
+        renderOpening(); renderSluit();
       };
       list.appendChild(item);
     });
@@ -1749,7 +1748,7 @@ function renderDagelijks() {
     header.innerHTML = `<span class="section-icon">➕</span>${sectieNaam}
       <span class="section-count-badge">${sectieDone}/${extra.length}</span>
       <span class="section-toggle">▼</span>`;
-    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderDagelijks(); };
+    header.onclick = () => { collapsedSections[sKey] = !collapsedSections[sKey]; renderOpening(); renderSluit(); };
     container.appendChild(header);
 
     const list = document.createElement('div');
@@ -1760,7 +1759,7 @@ function renderDagelijks() {
       const item = document.createElement('div');
       item.className = 'task-item' + (isDone ? ' done' : '');
       item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label">${taak}</div>`;
-      item.onclick = () => { dagelijksState[key] = !dagelijksState[key]; fbSet('dagelijks_' + getTodayKey(), dagelijksState); renderDagelijks(); };
+      item.onclick = () => { dagelijksState[key] = !dagelijksState[key]; fbSet('dagelijks_' + getTodayKey(), dagelijksState); renderOpening(); renderSluit(); };
       list.appendChild(item);
     });
     container.appendChild(list);
