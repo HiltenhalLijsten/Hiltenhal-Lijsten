@@ -2607,6 +2607,7 @@ function renderLijstenBeheer() {
   const alleSecties = [...gesorteerdeData, ...extraSecties];
 
   alleSecties.forEach((sectie, si) => {
+    try {
     const sectieAanp = aanp[sectie.sectie] || { verborgen: [], extra: [] };
     const hernoemdTaken = sectieAanp.hernoemdTaken || {};
     const isNieuwe = sectieAanp.isNieuwe;
@@ -2676,6 +2677,7 @@ function renderLijstenBeheer() {
         <button onclick="voegTaakToe('${activeLijst}','${sectie.sectie}')" style="font-size:13px;padding:6px 12px;background:var(--goud);color:var(--donker);border:none;border-radius:6px;font-weight:500;">+</button>
       </div>
     </div>`;
+    } catch(e) { console.error('Sectie render fout:', sectie.sectie, e); }
   });
 
   html += `<div style="background:var(--wit);border:1.5px dashed var(--grijs-mid);border-radius:10px;padding:14px;margin-top:8px;">
