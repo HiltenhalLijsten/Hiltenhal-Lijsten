@@ -1599,8 +1599,9 @@ function renderSluit() {
   renderLijst(sluitTakenData, sluitState, 'sluit', 'sluitTasks', 'sluitProgressText', 'sluitProgressBar', 'sluitSubmitBtn', 'sluit', true);
 }
 
-function renderOpening(); renderSluit() {
+function renderDagelijks() {
   const container = document.getElementById('dagelijksTasks');
+  if (!container) return;
   container.innerHTML = '';
   let total = 0, done = 0;
 
