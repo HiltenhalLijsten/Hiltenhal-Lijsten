@@ -2662,8 +2662,8 @@ function renderLijstenBeheer() {
         const hernoemdNaam = (sectieAanp.hernoemdTaken || {})[taakNaam] || taakNaam;
         return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--grijs-mid);flex-wrap:wrap;">
           <input type="text" value="${hernoemdNaam}" style="font-size:12px;flex:1;min-width:100px;padding:3px 6px;border:1px solid var(--grijs-mid);border-radius:5px;${isVerborgen?'opacity:0.4;text-decoration:line-through;':''}" onchange="hernoemTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',this.value)">
-          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' ,${ti},-1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omhoog">↑</button>
-          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}' ,${ti},1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omlaag">↓</button>
+          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},-1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omhoog">↑</button>
+          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omlaag">↓</button>
           <button onclick="toggleTaakZichtbaar('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',${isVerborgen})" style="font-size:11px;padding:3px 7px;border-radius:5px;background:${isVerborgen?'var(--groen-licht)':'#FEE2E2'};color:${isVerborgen?'var(--groen)':'var(--rood)'};border:none;">${isVerborgen?'👁️':'🚫'}</button>
           ${isExtra ? `<button onclick="verwijderExtraTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}') " style="font-size:11px;padding:3px 6px;border-radius:5px;color:var(--rood);background:none;border:none;">✕</button>` : ''}
         </div>`;
@@ -2736,17 +2736,31 @@ window.verplaatsTaak = async function(lijst, sectie, ti, richting) {
   if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
   const sectieAanp = lijstenAanpassingen[lijst][sectie];
 
-  // Als er nog geen volgorde is, maak die nu aan vanuit de huidige weergave
-  if (!sectieAanp._taakVolgorde || sectieAanp._taakVolgorde.length === 0) {
+  // Bouw de huidige alleTaken op precies zoals in de UI
+  let alleTaken;
+  if (sectieAanp._taakVolgorde && sectieAanp._taakVolgorde.length > 0) {
     const data = getLijstData(lijst);
     const s = data.find(s => s.sectie === sectie);
-    sectieAanp._taakVolgorde = [...(s ? s.taken : []), ...(sectieAanp.extra || [])];
+    alleTaken = sectieAanp._taakVolgorde.filter(t =>
+      (s ? s.taken.includes(t) : false) || (sectieAanp.extra || []).includes(t)
+    );
+    // Voeg ontbrekende toe
+    const inVolgorde = new Set(sectieAanp._taakVolgorde);
+    [...(s ? s.taken : []), ...(sectieAanp.extra || [])].forEach(t => {
+      if (!inVolgorde.has(t)) alleTaken.push(t);
+    });
+  } else {
+    const data = getLijstData(lijst);
+    const s = data.find(s => s.sectie === sectie);
+    alleTaken = [...(s ? s.taken : []), ...(sectieAanp.extra || [])];
   }
 
-  const volgorde = sectieAanp._taakVolgorde;
   const nieuweIdx = ti + richting;
-  if (ti < 0 || ti >= volgorde.length || nieuweIdx < 0 || nieuweIdx >= volgorde.length) return;
-  [volgorde[ti], volgorde[nieuweIdx]] = [volgorde[nieuweIdx], volgorde[ti]];
+  if (ti < 0 || ti >= alleTaken.length || nieuweIdx < 0 || nieuweIdx >= alleTaken.length) return;
+  [alleTaken[ti], alleTaken[nieuweIdx]] = [alleTaken[nieuweIdx], alleTaken[ti]];
+  
+  // Sla de nieuwe volgorde op
+  sectieAanp._taakVolgorde = alleTaken;
   await saveLijstenAanpassingen();
   renderLijstenBeheer();
   renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
