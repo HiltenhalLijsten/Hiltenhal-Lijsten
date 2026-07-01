@@ -2609,6 +2609,7 @@ function renderLijstenBeheer() {
   alleSecties.forEach((sectie, si) => {
     const sectieAanp = aanp[sectie.sectie] || { verborgen: [], extra: [] };
     const hernoemdTaken = sectieAanp.hernoemdTaken || {};
+    const isNieuwe = sectieAanp.isNieuwe;
     
     // Bouw alleTaken op — gebruik _taakVolgorde als die bestaat, anders originele volgorde
     let alleTaken;
