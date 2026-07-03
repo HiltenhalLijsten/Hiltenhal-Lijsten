@@ -3018,7 +3018,8 @@ function getWeekDays(offset = 0) {
     const dd = new Date(monday);
     dd.setDate(monday.getDate() + i);
     const key = dd.getFullYear() + '-' + String(dd.getMonth()+1).padStart(2,'0') + '-' + String(dd.getDate()).padStart(2,'0');
-    days.push({ key, label: dagNamen[i] + ' ' + dd.getDate() });
+    const maanden = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+    days.push({ key, label: dagNamen[i] + ' ' + dd.getDate() + ' ' + maanden[dd.getMonth()] });
   }
   const weekNr = getWeekNumber(monday);
   return { days, weekNr, monday };
