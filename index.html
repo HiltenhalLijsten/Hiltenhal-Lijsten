@@ -1146,9 +1146,10 @@ function renderLosTaken() {
   const container = document.getElementById('losTakenLijst');
   if (!container) return;
   container.innerHTML = losTaken.map((t, i) => `
-    <div style="display:flex;align-items:center;gap:8px;background:var(--blauw-licht);border-radius:6px;padding:6px 10px;">
+    <div style="display:flex;align-items:center;gap:8px;background:${t.doorgeschoven ? '#FEF3C7' : 'var(--blauw-licht)'};border-radius:6px;padding:6px 10px;">
       <span style="font-size:12px;font-weight:500;background:#BFDBFE;color:#1E40AF;padding:2px 8px;border-radius:10px;">${t.dag}</span>
       <span style="font-size:11px;background:#E0E7FF;color:#3730A3;padding:2px 6px;border-radius:10px;">${t.type === 'opening' ? '🌅' : t.type === 'sluit' ? '🌙' : '🌅🌙'}</span>
+      ${t.doorgeschoven ? '<span style="font-size:10px;background:#FDE68A;color:#92400E;padding:2px 6px;border-radius:10px;">↩️ doorgeschoven</span>' : ''}
       <span style="font-size:13px;flex:1;color:var(--donker);">${t.tekst}</span>
       <button onclick="removeLosTaak(${i})" style="font-size:12px;color:var(--rood);background:none;border:none;cursor:pointer;">✕</button>
     </div>`).join('');
@@ -1308,6 +1309,7 @@ async function init() {
     if (savedLosTaken) { losTaken = savedLosTaken; renderLosTaken(); }
 
     await loadVorigeOpmerkingen();
+    await controleerDoorschuifTaken();
     populateNaamDropdowns();
   } catch(e) {
     console.error('Firebase laden mislukt, app start met lege staat:', e);
@@ -1414,7 +1416,64 @@ window.slaOpmerking = async function(type) {
   showToast('Opmerking opgeslagen! ✓');
 }
 
-async function loadVorigeOpmerkingen() {
+async function controleerDoorschuifTaken() {
+  // Bereken gisteren in NL tijdzone
+  const nlNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  const gisteren = new Date(nlNow);
+  gisteren.setDate(gisteren.getDate() - 1);
+  const gisterenKey = gisteren.getFullYear() + '-' + String(gisteren.getMonth()+1).padStart(2,'0') + '-' + String(gisteren.getDate()).padStart(2,'0');
+  const DAYS_NL = ['Zo','Ma','Di','Wo','Do','Vr','Za'];
+  const gisterenDag = DAYS_NL[gisteren.getDay()];
+  const vandaagDag = DAYS_NL[nlNow.getDay()];
+
+  // Haal gisteren's losTaken op
+  const gisterenWeekKey = (() => {
+    const d = new Date(gisteren);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d);
+    monday.setDate(diff);
+    return monday.getFullYear() + '-' + String(monday.getMonth()+1).padStart(2,'0') + '-' + String(monday.getDate()).padStart(2,'0');
+  })();
+
+  const [gisterenLosTaken, gisterenOpeningState, gisterenSluitState] = await Promise.all([
+    fbGet('remco_los_taken_' + gisterenWeekKey),
+    fbGet('opening_' + gisterenKey),
+    fbGet('sluit_' + gisterenKey)
+  ]);
+
+  if (!gisterenLosTaken) return;
+
+  // Check welke taken voor gisteren niet afgevinkt zijn
+  const doorschuifTaken = [];
+  gisterenLosTaken.forEach((t, i) => {
+    if (t.dag !== gisterenDag) return;
+    const key = 'remco_los_' + i;
+    const openingAfgevinkt = gisterenOpeningState && gisterenOpeningState[key];
+    const sluitAfgevinkt = gisterenSluitState && gisterenSluitState[key];
+    const afgevinkt = openingAfgevinkt || sluitAfgevinkt;
+    if (!afgevinkt) {
+      doorschuifTaken.push({ tekst: t.tekst, dag: vandaagDag, type: t.type || 'beide', doorgeschoven: true });
+    }
+  });
+
+  if (doorschuifTaken.length === 0) return;
+
+  // Voeg doorgeschoven taken toe aan vandaag's losTaken als ze er nog niet in zitten
+  const vandaagWeekKey = getThisWeekKey();
+  doorschuifTaken.forEach(dt => {
+    const bestaatAl = losTaken.some(t => t.tekst === dt.tekst && t.dag === dt.dag && t.doorgeschoven);
+    if (!bestaatAl) losTaken.push(dt);
+  });
+
+  await fbSet('remco_los_taken_' + vandaagWeekKey, losTaken);
+  renderLosTaken();
+  renderOpening();
+  renderSluit();
+  if (doorschuifTaken.length > 0) {
+    showToast(doorschuifTaken.length + ' taak(en) doorgeschoven van gisteren!');
+  }
+}
   // Bij openen: toon sluiting van gisteren
   const gisteren = new Date();
   const nlGisteren = new Date(gisteren.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
