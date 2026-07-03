@@ -513,6 +513,7 @@
       <button id="rbtn-afval" onclick="showRemcoSection('afval')" style="font-size:13px;padding:6px 14px;border-radius:6px;">🗑️ Afval</button>
       <button id="rbtn-beheer" onclick="showRemcoSection('beheer')" style="font-size:13px;padding:6px 14px;border-radius:6px;">⚙️ Beheer</button>
       <button id="rbtn-instellingen" onclick="showRemcoSection('instellingen')" style="font-size:13px;padding:6px 14px;border-radius:6px;">🔧 Instellingen</button>
+      <button id="rbtn-handleiding" onclick="showRemcoSection('handleiding')" style="font-size:13px;padding:6px 14px;border-radius:6px;">📖 Handleiding</button>
       <button onclick="logoutRemco()" style="font-size:13px;padding:6px 14px;border-radius:6px;margin-left:auto;color:var(--rood);">Uitloggen</button>
     </div>
     <div id="rsec-weekplan">
@@ -565,6 +566,85 @@
     </div>
     <div id="rsec-beheer" style="display:none;">
 <div id="beheerTasks"></div>
+    </div>
+    <div id="rsec-handleiding" style="display:none;">
+      <div style="max-width:700px;font-size:14px;line-height:1.7;color:var(--donker);">
+        <h2 style="font-size:18px;margin:0 0 16px;">📖 Handleiding Hiltenhal Portaal</h2>
+        <div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:16px;margin-bottom:12px;">
+          <p style="font-weight:600;margin:0 0 8px;">Wat is de app en hoe werkt het</p>
+          <p style="margin:0;">De app draait op internet via GitHub en slaat alle data op in Firebase. GitHub is de plek waar de code staat, Firebase is de database waar alle ingevulde gegevens worden bewaard. Beide zijn gratis.</p>
+          <p style="margin:8px 0 0;"><strong>App adres:</strong> hiltenhallijsten.github.io/Hiltenhal-Lijsten/</p>
+        </div>
+        <div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:16px;margin-bottom:12px;">
+          <p style="font-weight:600;margin:0 0 8px;">Inloggen op GitHub</p>
+          <ol style="margin:0;padding-left:20px;">
+            <li>Ga naar <strong>github.com</strong></li>
+            <li>Klik op <strong>Sign in</strong></li>
+            <li>Klik op <strong>Continue with Google</strong></li>
+            <li>Log in met <strong>archiltenhal@gmail.com</strong></li>
+            <li>Na het inloggen zie je links de repository <strong>Hiltenhal-Lijsten</strong> staan</li>
+            <li>Klik daarop en je ziet het bestand <strong>index.html</strong></li>
+          </ol>
+        </div>
+        <div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:16px;margin-bottom:12px;">
+          <p style="font-weight:600;margin:0 0 8px;">De app aanpassen via AI — stap voor stap</p>
+          <ol style="margin:0;padding-left:20px;">
+            <li>Ga naar <strong>claude.ai</strong> (gratis, geen account nodig)</li>
+            <li>Ga op GitHub naar de repository en open <strong>index.html</strong></li>
+            <li>Klik rechtsboven op de downloadknop (pijltje omlaag)</li>
+            <li>Het bestand wordt opgeslagen op je computer</li>
+            <li>Upload dit bestand in de chat op claude.ai</li>
+            <li>Typ wat je wil veranderen, zo concreet mogelijk. Bijvoorbeeld:<br>
+              <em style="color:var(--grijs-tekst);">"Voeg bij de openingslijst onder Entree de taak Ramen lappen toe"</em><br>
+              <em style="color:var(--grijs-tekst);">"Verwijder de sectie Squashhal uit de sluitingslijst"</em></li>
+            <li>De AI geeft je een nieuwe index.html terug — download dat bestand</li>
+          </ol>
+        </div>
+        <div style="background:#FEF3C7;border:0.5px solid #FDE68A;border-radius:10px;padding:16px;margin-bottom:12px;">
+          <p style="font-weight:600;margin:0 0 8px;">Als er iets niet werkt — console gebruiken</p>
+          <p style="margin:0 0 8px;">Als de app iets niet doet wat je verwacht, stuur Claude een screenshot van de console:</p>
+          <ol style="margin:0;padding-left:20px;">
+            <li>Open de app in Chrome op je computer</li>
+            <li>Druk op <strong>F12</strong> (of rechtsklik op de pagina → Inspecteren)</li>
+            <li>Klik bovenaan op het tabblad <strong>Console</strong></li>
+            <li>Maak een screenshot en upload die in claude.ai</li>
+            <li>Leg uit wat er niet werkt</li>
+          </ol>
+        </div>
+        <div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:16px;margin-bottom:12px;">
+          <p style="font-weight:600;margin:0 0 8px;">Nieuwe code uploaden naar GitHub</p>
+          <ol style="margin:0;padding-left:20px;">
+            <li>Ga naar <strong>github.com</strong> en log in</li>
+            <li>Klik links op de repository <strong>Hiltenhal-Lijsten</strong></li>
+            <li>Klik op <strong>Add file</strong> — staat naast de groene Code knop</li>
+            <li>Kies <strong>Upload files</strong></li>
+            <li>Sleep de nieuwe <strong>index.html</strong> naar het venster of klik om te selecteren</li>
+            <li>Scroll naar beneden en klik op <strong>Commit changes</strong></li>
+            <li>De site is binnen 1-2 minuten bijgewerkt</li>
+          </ol>
+        </div>
+        <div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:16px;margin-bottom:12px;">
+          <p style="font-weight:600;margin:0 0 8px;">Wat je nooit via de code hoeft aan te passen</p>
+          <p style="margin:0 0 6px;">Dit doe je allemaal via de app zelf onder Remco → Instellingen:</p>
+          <ul style="margin:0;padding-left:20px;">
+            <li>Taken verbergen, toevoegen of hernoemen</li>
+            <li>Volgorde van taken aanpassen</li>
+            <li>Seizoenen instellen per sectie</li>
+            <li>Namen personeel toevoegen of verwijderen</li>
+            <li>Pincode wijzigen</li>
+            <li>Onderhoud intervallen aanpassen</li>
+            <li>Nieuwe secties aanmaken</li>
+          </ul>
+        </div>
+        <div style="background:var(--groen-licht);border:0.5px solid var(--groen);border-radius:10px;padding:16px;">
+          <p style="font-weight:600;margin:0 0 8px;">Kosten</p>
+          <ul style="margin:0;padding-left:20px;">
+            <li>GitHub Pages — gratis</li>
+            <li>Firebase — gratis tot 50.000 reads en 20.000 writes per dag, ruim voldoende</li>
+            <li>Claude.ai — gratis te gebruiken voor aanpassingen</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2432,7 +2512,7 @@ window.logoutRemco = function logoutRemco() {
 }
 
 window.showRemcoSection = function showRemcoSection(sec) {
-  ['weekplan', 'roosterMaken', 'afval', 'instellingen', 'beheer'].forEach(s => {
+  ['weekplan', 'roosterMaken', 'afval', 'instellingen', 'beheer', 'handleiding'].forEach(s => {
     const el = document.getElementById('rsec-' + s);
     if (el) el.style.display = s === sec ? 'block' : 'none';
     const btn = document.getElementById('rbtn-' + s);
