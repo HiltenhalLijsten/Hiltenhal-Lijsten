@@ -1474,6 +1474,8 @@ async function controleerDoorschuifTaken() {
     showToast(doorschuifTaken.length + ' taak(en) doorgeschoven van gisteren!');
   }
 }
+
+async function loadVorigeOpmerkingen() {
   // Bij openen: toon sluiting van gisteren
   const gisteren = new Date();
   const nlGisteren = new Date(gisteren.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
