@@ -1528,9 +1528,11 @@ async function controleerDoorschuifTaken() {
   const doorschuifTaken = [];
   gisterenLosTaken.forEach((t, i) => {
     if (t.dag !== gisterenDag) return;
-    const key = 'remco_los_' + i;
-    const openingAfgevinkt = gisterenOpeningState && gisterenOpeningState[key];
-    const sluitAfgevinkt = gisterenSluitState && gisterenSluitState[key];
+    // Controleer op meerdere mogelijke keys
+    const keyByIndex = 'remco_los_' + i;
+    const keyByTekst = 'remco_los_tekst_' + t.tekst;
+    const openingAfgevinkt = gisterenOpeningState && (gisterenOpeningState[keyByIndex] || gisterenOpeningState[keyByTekst]);
+    const sluitAfgevinkt = gisterenSluitState && (gisterenSluitState[keyByIndex] || gisterenSluitState[keyByTekst]);
     const afgevinkt = openingAfgevinkt || sluitAfgevinkt;
     if (!afgevinkt) {
       doorschuifTaken.push({ tekst: t.tekst, dag: vandaagDag, type: t.type || 'beide', doorgeschoven: true });
@@ -1685,7 +1687,7 @@ function renderRemcoVandaag(container, herRender, lijstType) {
     if (t.dag !== vandaagDag) return;
     const tType = t.type || 'beide';
     if (tType === 'beide' || tType === lijstType) {
-      remcoVandaag.push({ taak: t.tekst, key: 'remco_los_' + i });
+      remcoVandaag.push({ taak: t.tekst, key: 'remco_los_tekst_' + t.tekst });
     }
   });
 
