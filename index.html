@@ -1323,6 +1323,8 @@ function getNLDateString(date = new Date()) {
 function getTodayKey() {
   const now = new Date();
   const nlDate = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
+  // Dag wisselt om 05:00 — voor 05:00 telt het nog als gisteren
+  if (nlDate.getHours() < 5) nlDate.setDate(nlDate.getDate() - 1);
   return nlDate.getFullYear() + '-' + String(nlDate.getMonth()+1).padStart(2,'0') + '-' + String(nlDate.getDate()).padStart(2,'0');
 }
 
