@@ -1518,10 +1518,11 @@ async function controleerDoorschuifTaken() {
     return monday.getFullYear() + '-' + String(monday.getMonth()+1).padStart(2,'0') + '-' + String(monday.getDate()).padStart(2,'0');
   })();
 
-  const [gisterenLosTaken, gisterenOpeningState, gisterenSluitState] = await Promise.all([
+  const [gisterenLosTaken, gisterenOpeningState, gisterenSluitState, gisterenDagelijksState] = await Promise.all([
     fbGet('remco_los_taken_' + gisterenWeekKey),
     fbGet('opening_' + gisterenKey),
-    fbGet('sluit_' + gisterenKey)
+    fbGet('sluit_' + gisterenKey),
+    fbGet('dagelijks_' + gisterenKey)
   ]);
 
   if (!gisterenLosTaken) return;
@@ -1535,7 +1536,8 @@ async function controleerDoorschuifTaken() {
     const keyByTekst = 'remco_los_tekst_' + t.tekst;
     const openingAfgevinkt = gisterenOpeningState && (gisterenOpeningState[keyByIndex] || gisterenOpeningState[keyByTekst]);
     const sluitAfgevinkt = gisterenSluitState && (gisterenSluitState[keyByIndex] || gisterenSluitState[keyByTekst]);
-    const afgevinkt = openingAfgevinkt || sluitAfgevinkt;
+    const dagelijksAfgevinkt = gisterenDagelijksState && (gisterenDagelijksState[keyByIndex] || gisterenDagelijksState[keyByTekst]);
+    const afgevinkt = openingAfgevinkt || sluitAfgevinkt || dagelijksAfgevinkt;
     if (!afgevinkt) {
       doorschuifTaken.push({ tekst: t.tekst, dag: vandaagDag, type: t.type || 'beide', doorgeschoven: true });
     }
