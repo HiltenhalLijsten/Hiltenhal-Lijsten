@@ -1415,7 +1415,18 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
   if (!append) container.innerHTML = '';
   let total = 0, done = 0;
 
-  takenData.forEach((sectie, si) => {
+  // Pas opgeslagen sectievolgorde toe
+  const lijstAanp = lijstenAanpassingen[lijstNaam] || {};
+  const sectieVolgorde = lijstAanp._volgorde;
+  const gesorteerdeData = sectieVolgorde
+    ? [...takenData].sort((a, b) => {
+        const ia = sectieVolgorde.indexOf(a.sectie);
+        const ib = sectieVolgorde.indexOf(b.sectie);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      })
+    : takenData;
+
+  gesorteerdeData.forEach((sectie, si) => {
     // Skip seizoensgebonden secties buiten het seizoen
     if (sectie.seizoen && !isSeizoen(sectie.seizoen.van, sectie.seizoen.tot)) return;
 
@@ -1931,7 +1942,17 @@ function renderSportvelden() {
   container.innerHTML = '';
   let total = 0, done = 0;
 
-  sportveldTakenData.forEach((sectie, si) => {
+  const svAanp = lijstenAanpassingen['sportvelden'] || {};
+  const svVolgorde = svAanp._volgorde;
+  const gesorteerdeData = svVolgorde
+    ? [...sportveldTakenData].sort((a, b) => {
+        const ia = svVolgorde.indexOf(a.sectie);
+        const ib = svVolgorde.indexOf(b.sectie);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      })
+    : sportveldTakenData;
+
+  gesorteerdeData.forEach((sectie, si) => {
     const sKey = 'sv' + si;
     const collapsed = collapsedSections[sKey];
     const aanp = (lijstenAanpassingen['sportvelden'] || {})[sectie.sectie] || { verborgen: [], extra: [] };
@@ -2709,7 +2730,7 @@ function getLijstData(lijstNaam) {
   return [];
 }
 
-let activeLijst = 'dagelijks';
+let activeLijst = 'opening';
 
 function renderLijstenBeheer() {
   const container = document.getElementById('lijstenBeheer');
