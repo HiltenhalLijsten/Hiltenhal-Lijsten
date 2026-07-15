@@ -526,15 +526,24 @@
           <label>Losse taak toevoegen</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
             <input type="text" id="losTaakTekst" placeholder="Omschrijving taak..." style="flex:1;min-width:150px;">
-            <select id="losTaakDag" style="font-size:14px;padding:10px 12px;">
-              <option value="">Kies dag</option>
-              <option>Ma</option><option>Di</option><option>Wo</option><option>Do</option><option>Vr</option><option>Za</option><option>Zo</option>
-            </select>
             <select id="losTaakType" style="font-size:14px;padding:10px 12px;">
               <option value="beide">Openen & Sluiten</option>
               <option value="opening">Alleen Openen</option>
               <option value="sluit">Alleen Sluiten</option>
             </select>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap;">
+            <select id="losTaakPlanType" onchange="toggleLosTaakPlanning()" style="font-size:13px;padding:8px 10px;">
+              <option value="dag">Dag van de week</option>
+              <option value="datum">Specifieke datum</option>
+            </select>
+            <select id="losTaakDag" style="font-size:14px;padding:10px 12px;">
+              <option value="">Kies dag</option>
+              <option>Ma</option><option>Di</option><option>Wo</option><option>Do</option><option>Vr</option><option>Za</option><option>Zo</option>
+            </select>
+            <div id="losTaakKalenderWrap" style="display:none;">
+              <div id="losTaakKalender"></div>
+            </div>
             <button onclick="addLosTaak()" style="font-size:13px;padding:10px 14px;background:var(--donker);color:var(--wit);border:none;border-radius:8px;">+ Voeg toe</button>
           </div>
           <div id="losTakenLijst" style="display:flex;flex-direction:column;gap:6px;"></div>
@@ -1228,26 +1237,97 @@ function renderLosTaken() {
   if (!container) return;
   container.innerHTML = losTaken.map((t, i) => `
     <div style="display:flex;align-items:center;gap:8px;background:${t.doorgeschoven ? '#FEF3C7' : 'var(--blauw-licht)'};border-radius:6px;padding:6px 10px;">
-      <span style="font-size:12px;font-weight:500;background:#BFDBFE;color:#1E40AF;padding:2px 8px;border-radius:10px;">${t.dag}</span>
+      <span style="font-size:12px;font-weight:500;background:#BFDBFE;color:#1E40AF;padding:2px 8px;border-radius:10px;">${t.datum ? t.datum : t.dag}</span>
       <span style="font-size:11px;background:#E0E7FF;color:#3730A3;padding:2px 6px;border-radius:10px;">${t.type === 'opening' ? '🌅' : t.type === 'sluit' ? '🌙' : '🌅🌙'}</span>
       ${t.doorgeschoven ? '<span style="font-size:10px;background:#FDE68A;color:#92400E;padding:2px 6px;border-radius:10px;">↩️ doorgeschoven</span>' : ''}
+      ${t.datum ? '<span style="font-size:10px;background:#D1FAE5;color:#065F46;padding:2px 6px;border-radius:10px;">📅 eenmalig</span>' : ''}
       <span style="font-size:13px;flex:1;color:var(--donker);">${t.tekst}</span>
       <button onclick="removeLosTaak(${i})" style="font-size:12px;color:var(--rood);background:none;border:none;cursor:pointer;">✕</button>
     </div>`).join('');
 }
 
+// ===== LOSTAAK KALENDER =====
+let losTaakKalenderDatum = new Date();
+let losTaakGekozenDatum = null;
+
+window.toggleLosTaakPlanning = function() {
+  const type = document.getElementById('losTaakPlanType').value;
+  document.getElementById('losTaakDag').style.display = type === 'dag' ? '' : 'none';
+  document.getElementById('losTaakKalenderWrap').style.display = type === 'datum' ? '' : 'none';
+  if (type === 'datum') renderLosTaakKalender();
+}
+
+function renderLosTaakKalender() {
+  const container = document.getElementById('losTaakKalender');
+  if (!container) return;
+  const maanden = ['Jan','Feb','Mrt','Apr','Mei','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
+  const year = losTaakKalenderDatum.getFullYear();
+  const month = losTaakKalenderDatum.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const startDay = firstDay === 0 ? 6 : firstDay - 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = getTodayKey();
+
+  let html = `<div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:10px;min-width:260px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <button onclick="losTaakKalenderDatum.setMonth(losTaakKalenderDatum.getMonth()-1);renderLosTaakKalender()" style="border:none;background:none;font-size:16px;cursor:pointer;">←</button>
+      <span style="font-size:13px;font-weight:500;">${maanden[month]} ${year}</span>
+      <button onclick="losTaakKalenderDatum.setMonth(losTaakKalenderDatum.getMonth()+1);renderLosTaakKalender()" style="border:none;background:none;font-size:16px;cursor:pointer;">→</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+      ${['Ma','Di','Wo','Do','Vr','Za','Zo'].map(d => `<div style="text-align:center;font-size:10px;color:var(--grijs-tekst);">${d}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
+      ${Array(startDay).fill('<div></div>').join('')}
+      ${Array.from({length: daysInMonth}, (_, i) => {
+        const day = i + 1;
+        const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const isGekozen = losTaakGekozenDatum === dateKey;
+        const isToday = dateKey === todayKey;
+        return `<div onclick="selectLosTaakDatum('${dateKey}')" style="text-align:center;padding:4px 2px;border-radius:4px;cursor:pointer;font-size:12px;background:${isGekozen?'var(--donker)':isToday?'var(--blauw-licht)':'none'};color:${isGekozen?'var(--wit)':isToday?'#1E40AF':'var(--donker)'};">${day}</div>`;
+      }).join('')}
+    </div>
+    ${losTaakGekozenDatum ? `<p style="font-size:12px;color:var(--groen);margin:6px 0 0;text-align:center;">✓ ${losTaakGekozenDatum}</p>` : ''}
+  </div>`;
+  container.innerHTML = html;
+}
+
+window.selectLosTaakDatum = function(datum) {
+  losTaakGekozenDatum = datum;
+  renderLosTaakKalender();
+}
+
 window.addLosTaak = async function addLosTaak() {
   const tekst = document.getElementById('losTaakTekst').value.trim();
-  const dag = document.getElementById('losTaakDag').value;
   const type = document.getElementById('losTaakType').value;
-  if (!tekst || !dag) { showToast('Vul een taak en dag in!'); return; }
-  losTaken.push({ tekst, dag, type });
+  const planType = document.getElementById('losTaakPlanType').value;
+
+  if (!tekst) { showToast('Vul een taakomschrijving in!'); return; }
+
+  let dag = null;
+  let datum = null;
+
+  if (planType === 'dag') {
+    dag = document.getElementById('losTaakDag').value;
+    if (!dag) { showToast('Kies een dag!'); return; }
+  } else {
+    if (!losTaakGekozenDatum) { showToast('Kies een datum!'); return; }
+    datum = losTaakGekozenDatum;
+    // Zet dag ook op basis van datum voor doorschuif logica
+    const d = new Date(datum + 'T12:00:00');
+    const DAYS_NL = ['Zo','Ma','Di','Wo','Do','Vr','Za'];
+    dag = DAYS_NL[d.getDay()];
+  }
+
+  losTaken.push({ tekst, dag, type, datum });
   document.getElementById('losTaakTekst').value = '';
   document.getElementById('losTaakDag').value = '';
+  losTaakGekozenDatum = null;
   await fbSet('remco_los_taken_' + getThisWeekKey(), losTaken);
   renderLosTaken();
   renderOpening();
   renderSluit();
+  showToast('Taak toegevoegd!');
 }
 
 window.removeLosTaak = async function removeLosTaak(i) {
@@ -1700,8 +1780,10 @@ function renderRemcoVandaag(container, herRender, lijstType) {
   });
   // Losse taken filteren op dag en type
   (losTaken || []).forEach((t, i) => {
-    if (t.dag !== vandaagDag) return;
     const tType = t.type || 'beide';
+    const matchesDag = t.dag === vandaagDag && !t.datum;
+    const matchesDatum = t.datum && t.datum === getTodayKey();
+    if (!matchesDag && !matchesDatum) return;
     if (tType === 'beide' || tType === lijstType) {
       remcoVandaag.push({ taak: t.tekst, key: 'remco_los_tekst_' + t.tekst });
     }
