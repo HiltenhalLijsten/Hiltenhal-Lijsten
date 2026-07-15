@@ -531,22 +531,10 @@
               <option value="opening">Alleen Openen</option>
               <option value="sluit">Alleen Sluiten</option>
             </select>
-          </div>
-          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap;">
-            <select id="losTaakPlanType" onchange="toggleLosTaakPlanning()" style="font-size:13px;padding:8px 10px;">
-              <option value="dag">Dag van de week</option>
-              <option value="datum">Specifieke datum</option>
-            </select>
-            <select id="losTaakDag" style="font-size:14px;padding:10px 12px;">
-              <option value="">Kies dag</option>
-              <option>Ma</option><option>Di</option><option>Wo</option><option>Do</option><option>Vr</option><option>Za</option><option>Zo</option>
-            </select>
-            <div id="losTaakKalenderWrap" style="display:none;">
-              <div id="losTaakKalender"></div>
-            </div>
             <button onclick="addLosTaak()" style="font-size:13px;padding:10px 14px;background:var(--donker);color:var(--wit);border:none;border-radius:8px;">+ Voeg toe</button>
           </div>
-          <div id="losTakenLijst" style="display:flex;flex-direction:column;gap:6px;"></div>
+          <div id="losTaakKalender"></div>
+          <div id="losTakenLijst" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
         </div>
         <div class="form-row" style="margin-top:12px;">
           <label>Opmerkingen / losse notities</label>
@@ -1246,33 +1234,31 @@ function renderLosTaken() {
     </div>`).join('');
 }
 
-// ===== LOSTAAK KALENDER =====
-let losTaakKalenderDatum = new Date();
+// ===== KALENDER HELPER =====
+let losTaakKalenderDatum = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
 let losTaakGekozenDatum = null;
 
-window.toggleLosTaakPlanning = function() {
-  const type = document.getElementById('losTaakPlanType').value;
-  document.getElementById('losTaakDag').style.display = type === 'dag' ? '' : 'none';
-  document.getElementById('losTaakKalenderWrap').style.display = type === 'datum' ? '' : 'none';
-  if (type === 'datum') renderLosTaakKalender();
-}
-
-function renderLosTaakKalender() {
-  const container = document.getElementById('losTaakKalender');
+function renderKalender(containerId, gekozenDatum, controller, kalArg) {
+  const container = document.getElementById(containerId);
   if (!container) return;
   const maanden = ['Jan','Feb','Mrt','Apr','Mei','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
-  const year = losTaakKalenderDatum.getFullYear();
-  const month = losTaakKalenderDatum.getMonth();
+  const kalenderDatum = typeof kalArg === 'string' ? (window.remcoKalData[kalArg]?.datum || new Date()) : kalArg;
+  const year = kalenderDatum.getFullYear();
+  const month = kalenderDatum.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const startDay = firstDay === 0 ? 6 : firstDay - 1;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayKey = getTodayKey();
+  const isRemco = typeof kalArg === 'string';
+  const prevCall = isRemco ? `remcoKal.prevMonth('${kalArg}')` : `losTaakKal.prevMonth()`;
+  const nextCall = isRemco ? `remcoKal.nextMonth('${kalArg}')` : `losTaakKal.nextMonth()`;
+  const selectCall = (dateKey) => isRemco ? `remcoKal.select('${dateKey}','${kalArg}')` : `losTaakKal.select('${dateKey}')`;
 
-  let html = `<div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:10px;min-width:260px;">
+  container.innerHTML = `<div style="background:var(--wit);border:0.5px solid var(--grijs-mid);border-radius:10px;padding:10px;margin-top:6px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <button onclick="losTaakKalenderDatum.setMonth(losTaakKalenderDatum.getMonth()-1);renderLosTaakKalender()" style="border:none;background:none;font-size:16px;cursor:pointer;">←</button>
+      <button onclick="${prevCall}" style="border:none;background:none;font-size:16px;cursor:pointer;padding:2px 8px;">←</button>
       <span style="font-size:13px;font-weight:500;">${maanden[month]} ${year}</span>
-      <button onclick="losTaakKalenderDatum.setMonth(losTaakKalenderDatum.getMonth()+1);renderLosTaakKalender()" style="border:none;background:none;font-size:16px;cursor:pointer;">→</button>
+      <button onclick="${nextCall}" style="border:none;background:none;font-size:16px;cursor:pointer;padding:2px 8px;">→</button>
     </div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
       ${['Ma','Di','Wo','Do','Vr','Za','Zo'].map(d => `<div style="text-align:center;font-size:10px;color:var(--grijs-tekst);">${d}</div>`).join('')}
@@ -1282,51 +1268,69 @@ function renderLosTaakKalender() {
       ${Array.from({length: daysInMonth}, (_, i) => {
         const day = i + 1;
         const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        const isGekozen = losTaakGekozenDatum === dateKey;
+        const isGekozen = gekozenDatum === dateKey;
         const isToday = dateKey === todayKey;
-        return `<div onclick="selectLosTaakDatum('${dateKey}')" style="text-align:center;padding:4px 2px;border-radius:4px;cursor:pointer;font-size:12px;background:${isGekozen?'var(--donker)':isToday?'var(--blauw-licht)':'none'};color:${isGekozen?'var(--wit)':isToday?'#1E40AF':'var(--donker)'};">${day}</div>`;
+        return `<div onclick="${selectCall(dateKey)}" style="text-align:center;padding:4px 2px;border-radius:4px;cursor:pointer;font-size:12px;background:${isGekozen?'var(--donker)':isToday?'var(--blauw-licht)':'none'};color:${isGekozen?'var(--wit)':isToday?'#1E40AF':'var(--donker)'};">${day}</div>`;
       }).join('')}
     </div>
-    ${losTaakGekozenDatum ? `<p style="font-size:12px;color:var(--groen);margin:6px 0 0;text-align:center;">✓ ${losTaakGekozenDatum}</p>` : ''}
+    ${gekozenDatum ? `<p style="font-size:12px;color:var(--groen);margin:6px 0 0;text-align:center;">✓ ${gekozenDatum}</p>` : '<p style="font-size:11px;color:var(--grijs-tekst);margin:6px 0 0;text-align:center;">Kies een datum</p>'}
   </div>`;
-  container.innerHTML = html;
 }
 
-window.selectLosTaakDatum = function(datum) {
-  losTaakGekozenDatum = datum;
-  renderLosTaakKalender();
-}
+// LosTaak kalender controller
+window.losTaakKal = {
+  select(datum) { losTaakGekozenDatum = datum; renderKalender('losTaakKalender', losTaakGekozenDatum, 'losTaakKal', losTaakKalenderDatum); },
+  prevMonth() { losTaakKalenderDatum.setMonth(losTaakKalenderDatum.getMonth()-1); renderKalender('losTaakKalender', losTaakGekozenDatum, 'losTaakKal', losTaakKalenderDatum); },
+  nextMonth() { losTaakKalenderDatum.setMonth(losTaakKalenderDatum.getMonth()+1); renderKalender('losTaakKalender', losTaakGekozenDatum, 'losTaakKal', losTaakKalenderDatum); }
+};
+window.remcoKalData = {};
+window.remcoKal = {
+  init(key) {
+    if (!window.remcoKalData[key]) window.remcoKalData[key] = { datum: new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' })) };
+    const gekozen = remcoState[key]?.datum || null;
+    renderKalender('remco_kal_' + key, gekozen, `remcoKal`, key);
+  },
+  select(datum, key) {
+    if (!remcoState[key]) remcoState[key] = { selected: true, dagen: [], datum: null };
+    remcoState[key].datum = datum;
+    // Zet dag op basis van datum
+    const d = new Date(datum + 'T12:00:00');
+    const DAYS_NL = ['Zo','Ma','Di','Wo','Do','Vr','Za'];
+    remcoState[key].dagen = [DAYS_NL[d.getDay()]];
+    fbSet('remco_' + getThisWeekKey(), remcoState);
+    renderKalender('remco_kal_' + key, datum, `remcoKal`, window.remcoKalData[key].datum);
+    showToast('Datum ingesteld!');
+  },
+  prevMonth(key) {
+    if (!window.remcoKalData[key]) window.remcoKalData[key] = { datum: new Date() };
+    window.remcoKalData[key].datum.setMonth(window.remcoKalData[key].datum.getMonth()-1);
+    renderKalender('remco_kal_' + key, remcoState[key]?.datum || null, `remcoKal`, window.remcoKalData[key].datum);
+  },
+  nextMonth(key) {
+    if (!window.remcoKalData[key]) window.remcoKalData[key] = { datum: new Date() };
+    window.remcoKalData[key].datum.setMonth(window.remcoKalData[key].datum.getMonth()+1);
+    renderKalender('remco_kal_' + key, remcoState[key]?.datum || null, `remcoKal`, window.remcoKalData[key].datum);
+  }
+};
 
 window.addLosTaak = async function addLosTaak() {
   const tekst = document.getElementById('losTaakTekst').value.trim();
   const type = document.getElementById('losTaakType').value;
-  const planType = document.getElementById('losTaakPlanType').value;
-
   if (!tekst) { showToast('Vul een taakomschrijving in!'); return; }
-
-  let dag = null;
-  let datum = null;
-
-  if (planType === 'dag') {
-    dag = document.getElementById('losTaakDag').value;
-    if (!dag) { showToast('Kies een dag!'); return; }
-  } else {
-    if (!losTaakGekozenDatum) { showToast('Kies een datum!'); return; }
-    datum = losTaakGekozenDatum;
-    // Zet dag ook op basis van datum voor doorschuif logica
-    const d = new Date(datum + 'T12:00:00');
-    const DAYS_NL = ['Zo','Ma','Di','Wo','Do','Vr','Za'];
-    dag = DAYS_NL[d.getDay()];
-  }
-
+  if (!losTaakGekozenDatum) { showToast('Kies een datum!'); return; }
+  const datum = losTaakGekozenDatum;
+  const d = new Date(datum + 'T12:00:00');
+  const DAYS_NL = ['Zo','Ma','Di','Wo','Do','Vr','Za'];
+  const dag = DAYS_NL[d.getDay()];
   losTaken.push({ tekst, dag, type, datum });
   document.getElementById('losTaakTekst').value = '';
-  document.getElementById('losTaakDag').value = '';
   losTaakGekozenDatum = null;
+  losTaakKalenderDatum = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
   await fbSet('remco_los_taken_' + getThisWeekKey(), losTaken);
   renderLosTaken();
   renderOpening();
   renderSluit();
+  renderKalender('losTaakKalender', null, 'losTaakKal', losTaakKalenderDatum);
   showToast('Taak toegevoegd!');
 }
 
@@ -1485,6 +1489,7 @@ async function init() {
   renderOnderhoud();
   renderBeheer();
   renderHistorie();
+  renderKalender('losTaakKalender', null, 'losTaakKal', losTaakKalenderDatum);
 }
 
 // ===== RENDER DAGELIJKS =====
@@ -2106,11 +2111,13 @@ function renderRemco() {
         <div class="week-task-check" onclick="toggleRemcoTask('${key}')">${state.selected ? '✓' : ''}</div>
         <div class="week-task-info">
           <div class="week-task-name">${taak.naam}</div>
-          ${state.selected ? `<div class="day-selector" id="days_${key}">
-            ${DAYS.map(d => `<button class="day-btn${state.dagen.includes(d) ? ' active' : ''}" onclick="toggleDay('${key}','${d}');event.stopPropagation()">${d}</button>`).join('')}
-          </div>` : ''}
+          ${state.selected ? `<div id="remco_kal_${key}"></div>` : ''}
         </div>`;
       list.appendChild(item);
+      if (state.selected) {
+        const keyRef = key;
+        setTimeout(() => window.remcoKal.init(keyRef), 0);
+      }
     });
     container.appendChild(list);
   });
