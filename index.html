@@ -2604,6 +2604,18 @@ window.openRemco = function openRemco(el) {
   if (sessionStorage.getItem('remcoUnlocked') === '1') {
     document.getElementById('pinScreen').style.display = 'none';
     document.getElementById('remcoContent').style.display = 'block';
+    // Ververs data uit Firebase zodat recent gegenereerde/aangepaste weeklijst zichtbaar is
+    Promise.all([
+      fbGet('remco_' + getThisWeekKey()),
+      fbGet('remco_los_taken_' + getThisWeekKey())
+    ]).then(([savedRemco, savedLos]) => {
+      remcoState = savedRemco || {};
+      losTaken = savedLos || [];
+      renderRemco();
+      renderLosTaken();
+    });
+    renderBeheer();
+    if (window.renderRoosterEditor) window.renderRoosterEditor();
   } else {
     document.getElementById('pinScreen').style.display = 'block';
     document.getElementById('remcoContent').style.display = 'none';
@@ -2620,7 +2632,15 @@ window.checkPin = function checkPin() {
     document.getElementById('pinScreen').style.display = 'none';
     document.getElementById('remcoContent').style.display = 'block';
     fbGet('remco_pin').then(saved => { if (saved && saved.pin) sessionStorage.setItem('remcoPin', saved.pin); });
-    fbGet('remco_' + getThisWeekKey()).then(saved => { remcoState = saved || {}; renderRemco(); });
+    Promise.all([
+      fbGet('remco_' + getThisWeekKey()),
+      fbGet('remco_los_taken_' + getThisWeekKey())
+    ]).then(([savedRemco, savedLos]) => {
+      remcoState = savedRemco || {};
+      losTaken = savedLos || [];
+      renderRemco();
+      renderLosTaken();
+    });
     renderBeheer();
     window.renderRoosterEditor();
   } else {
