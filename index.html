@@ -3031,6 +3031,8 @@ window.toonTaakInfo = function(e, taak, info) {
     });
   }, 10);
 }
+
+window.verplaatsTaak = async function(lijst, sectie, ti, richting) {
   if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
   if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
   const sectieAanp = lijstenAanpassingen[lijst][sectie];
