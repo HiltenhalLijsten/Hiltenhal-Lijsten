@@ -1567,7 +1567,7 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
       const aanp = (lijstenAanpassingen[lijstNaam] || {})[sectie.sectie] || {};
       const taakInfoMap = aanp.taakInfo || {};
       const taakInfo = taakInfoMap[taakOrig] || taakInfoMap[taak] || '';
-      const infoBtn = taakInfo ? `<button onclick="toonTaakInfo(event,'${taak.replace(/'/g,"\\'")}','${taakInfo.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n')}')" style="margin-left:6px;background:none;border:1.5px solid var(--blauw);color:var(--blauw);border-radius:50%;width:22px;height:22px;font-size:12px;font-weight:700;flex-shrink:0;cursor:pointer;line-height:1;" title="Info">ⓘ</button>` : '';
+      const infoBtn = taakInfo ? `<button onclick="toonTaakInfo(event,'${taak.replace(/'/g,"\\'")}','${taakInfo.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n')}')" style="margin-left:6px;background:none;border:1.5px solid var(--donker);color:var(--donker);border-radius:50%;width:22px;height:22px;font-size:12px;font-weight:700;flex-shrink:0;cursor:pointer;line-height:1;" title="Info">ⓘ</button>` : '';
       const item = document.createElement('div');
       item.className = 'task-item' + (isDone ? ' done' : '');
       item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label" style="flex:1;">${taak}</div>${infoBtn}`;
@@ -3016,7 +3016,7 @@ window.toonTaakInfo = function(e, taak, info) {
   const popup = document.createElement('div');
   popup.className = 'taak-info-popup';
   popup.style.cssText = 'position:fixed;z-index:9999;background:var(--donker);color:var(--wit);padding:14px 16px;border-radius:10px;max-width:300px;font-size:13px;line-height:1.6;box-shadow:0 4px 20px rgba(0,0,0,0.4);';
-  popup.innerHTML = `<div style="font-weight:600;margin-bottom:6px;color:var(--goud);">${taak}</div><div>${info.replace(/\\n/g,'<br>')}</div>`;
+  popup.innerHTML = `<div>${info.replace(/\\n/g,'<br>')}</div>`;
   document.body.appendChild(popup);
   // Positie berekenen
   const rect = e.target.getBoundingClientRect();
