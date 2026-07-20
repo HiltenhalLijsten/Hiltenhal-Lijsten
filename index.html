@@ -1530,7 +1530,7 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
     const alleTaken = ids
       .map(id => alleTakenOrigineel[id])
       .filter(t => t !== undefined && !(aanp.verborgen || []).includes(t))
-      .map(t => hernoemdTaken[t] || t);
+      .map(t => ({ orig: t, weergave: hernoemdTaken[t] || t }));
     let sectieDone = 0;
 
     alleTaken.forEach((taak, ti) => {
@@ -1558,13 +1558,16 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
     const list = document.createElement('div');
     list.className = 'task-list' + (collapsed ? ' collapsed' : '');
 
-    alleTaken.forEach((taak, ti) => {
+    alleTaken.forEach((taakObj, ti) => {
+      const taak = taakObj.weergave;
+      const taakOrig = taakObj.orig;
       const key = lijstNaam + si + '_' + ti;
       const isDone = !!state[key];
-      // Haal taakinfo op — zoek op hernoemde naam én originele naam
+      // Haal taakinfo op — info is opgeslagen onder de originele taaknaam
       const aanp = (lijstenAanpassingen[lijstNaam] || {})[sectie.sectie] || {};
-      const taakInfo = (aanp.taakInfo || {})[taak] || '';
-      const infoBtn = taakInfo ? `<button onclick="toonTaakInfo(event,'${taak.replace(/'/g,"\\'")}','${taakInfo.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')" style="margin-left:6px;background:none;border:1.5px solid var(--blauw);color:var(--blauw);border-radius:50%;width:22px;height:22px;font-size:12px;font-weight:700;flex-shrink:0;cursor:pointer;line-height:1;" title="Info">ⓘ</button>` : '';
+      const taakInfoMap = aanp.taakInfo || {};
+      const taakInfo = taakInfoMap[taakOrig] || taakInfoMap[taak] || '';
+      const infoBtn = taakInfo ? `<button onclick="toonTaakInfo(event,'${taak.replace(/'/g,"\\'")}','${taakInfo.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n')}')" style="margin-left:6px;background:none;border:1.5px solid var(--blauw);color:var(--blauw);border-radius:50%;width:22px;height:22px;font-size:12px;font-weight:700;flex-shrink:0;cursor:pointer;line-height:1;" title="Info">ⓘ</button>` : '';
       const item = document.createElement('div');
       item.className = 'task-item' + (isDone ? ' done' : '');
       item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label" style="flex:1;">${taak}</div>${infoBtn}`;
