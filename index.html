@@ -1561,10 +1561,15 @@ function renderLijst(takenData, state, stateKey, containerId, progressTextId, pr
     alleTaken.forEach((taak, ti) => {
       const key = lijstNaam + si + '_' + ti;
       const isDone = !!state[key];
+      // Haal taakinfo op — zoek op hernoemde naam én originele naam
+      const aanp = (lijstenAanpassingen[lijstNaam] || {})[sectie.sectie] || {};
+      const taakInfo = (aanp.taakInfo || {})[taak] || '';
+      const infoBtn = taakInfo ? `<button onclick="toonTaakInfo(event,'${taak.replace(/'/g,"\\'")}','${taakInfo.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')" style="margin-left:6px;background:none;border:1.5px solid var(--blauw);color:var(--blauw);border-radius:50%;width:22px;height:22px;font-size:12px;font-weight:700;flex-shrink:0;cursor:pointer;line-height:1;" title="Info">ⓘ</button>` : '';
       const item = document.createElement('div');
       item.className = 'task-item' + (isDone ? ' done' : '');
-      item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label">${taak}</div>`;
-      item.onclick = () => {
+      item.innerHTML = `<div class="task-check">${isDone ? '✓' : ''}</div><div class="task-label" style="flex:1;">${taak}</div>${infoBtn}`;
+      item.onclick = (e) => {
+        if (e.target.closest('button')) return;
         state[key] = !state[key];
         fbSet(stateKey + '_' + getTodayKey(), state);
         autoSaveHistorie(takenData, state, stateKey, lijstNaam);
@@ -2909,12 +2914,18 @@ function renderLijstenBeheer() {
         const isVerborgen = (sectieAanp.verborgen || []).includes(taakNaam);
         const isExtra = (sectieAanp.extra || []).includes(taakNaam);
         const hernoemdNaam = (sectieAanp.hernoemdTaken || {})[taakNaam] || taakNaam;
-        return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--grijs-mid);flex-wrap:wrap;">
-          <input type="text" value="${hernoemdNaam}" style="font-size:12px;flex:1;min-width:100px;padding:3px 6px;border:1px solid var(--grijs-mid);border-radius:5px;${isVerborgen?'opacity:0.4;text-decoration:line-through;':''}" onchange="hernoemTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',this.value)">
-          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},-1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omhoog">↑</button>
-          <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omlaag">↓</button>
-          <button onclick="toggleTaakZichtbaar('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',${isVerborgen})" style="font-size:11px;padding:3px 7px;border-radius:5px;background:${isVerborgen?'var(--groen-licht)':'#FEE2E2'};color:${isVerborgen?'var(--groen)':'var(--rood)'};border:none;">${isVerborgen?'👁️':'🚫'}</button>
-          ${isExtra ? `<button onclick="verwijderExtraTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}') " style="font-size:11px;padding:3px 6px;border-radius:5px;color:var(--rood);background:none;border:none;">✕</button>` : ''}
+        return `<div style="display:flex;flex-direction:column;gap:4px;padding:5px 0;border-bottom:0.5px solid var(--grijs-mid);">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <input type="text" value="${hernoemdNaam}" style="font-size:12px;flex:1;min-width:100px;padding:3px 6px;border:1px solid var(--grijs-mid);border-radius:5px;${isVerborgen?'opacity:0.4;text-decoration:line-through;':''}" onchange="hernoemTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',this.value)">
+            <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},-1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omhoog">↑</button>
+            <button onclick="verplaatsTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}',${ti},1)" style="font-size:11px;padding:3px 6px;border-radius:5px;" title="Omlaag">↓</button>
+            <button onclick="toggleTaakZichtbaar('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',${isVerborgen})" style="font-size:11px;padding:3px 7px;border-radius:5px;background:${isVerborgen?'var(--groen-licht)':'#FEE2E2'};color:${isVerborgen?'var(--groen)':'var(--rood)'};border:none;">${isVerborgen?'👁️':'🚫'}</button>
+            ${isExtra ? `<button onclick="verwijderExtraTaak('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}') " style="font-size:11px;padding:3px 6px;border-radius:5px;color:var(--rood);background:none;border:none;">✕</button>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:10px;color:var(--grijs-tekst);white-space:nowrap;">ⓘ Info:</span>
+            <input type="text" value="${((sectieAanp.taakInfo||{})[taakNaam]||'')}" placeholder="Uitleg voor personeel (optioneel)..." style="font-size:11px;flex:1;padding:3px 6px;border:1px solid var(--grijs-mid);border-radius:5px;color:var(--donker);" onchange="slaaTaakInfoOp('${activeLijst}','${sectie.sectie.replace(/'/g,"\\'")}','${taakNaam.replace(/'/g,"\\'")}',this.value)">
+          </div>
         </div>`;
       }).join('')}
 
@@ -2981,7 +2992,45 @@ window.verplaatsSectie = async function(lijst, sectieNaam, richting) {
   showToast('Volgorde aangepast!');
 }
 
-window.verplaatsTaak = async function(lijst, sectie, ti, richting) {
+window.slaaTaakInfoOp = async function(lijst, sectie, taakNaam, info) {
+  if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
+  if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
+  if (!lijstenAanpassingen[lijst][sectie].taakInfo) lijstenAanpassingen[lijst][sectie].taakInfo = {};
+  if (info.trim()) {
+    lijstenAanpassingen[lijst][sectie].taakInfo[taakNaam] = info.trim();
+  } else {
+    delete lijstenAanpassingen[lijst][sectie].taakInfo[taakNaam];
+  }
+  await saveLijstenAanpassingen();
+  renderOpening(); renderSluit(); renderSportvelden(); renderOnderhoud(); renderBeheer();
+  showToast('Info opgeslagen!');
+}
+
+window.toonTaakInfo = function(e, taak, info) {
+  e.stopPropagation();
+  // Verwijder bestaande popup
+  document.querySelectorAll('.taak-info-popup').forEach(el => el.remove());
+  const popup = document.createElement('div');
+  popup.className = 'taak-info-popup';
+  popup.style.cssText = 'position:fixed;z-index:9999;background:var(--donker);color:var(--wit);padding:14px 16px;border-radius:10px;max-width:300px;font-size:13px;line-height:1.6;box-shadow:0 4px 20px rgba(0,0,0,0.4);';
+  popup.innerHTML = `<div style="font-weight:600;margin-bottom:6px;color:var(--goud);">${taak}</div><div>${info.replace(/\\n/g,'<br>')}</div>`;
+  document.body.appendChild(popup);
+  // Positie berekenen
+  const rect = e.target.getBoundingClientRect();
+  let top = rect.bottom + 8;
+  let left = rect.left - 150;
+  if (left < 8) left = 8;
+  if (top + 150 > window.innerHeight) top = rect.top - 160;
+  popup.style.top = top + 'px';
+  popup.style.left = left + 'px';
+  // Sluit bij klik buiten popup
+  setTimeout(() => {
+    document.addEventListener('click', function closePopup() {
+      popup.remove();
+      document.removeEventListener('click', closePopup);
+    });
+  }, 10);
+}
   if (!lijstenAanpassingen[lijst]) lijstenAanpassingen[lijst] = {};
   if (!lijstenAanpassingen[lijst][sectie]) lijstenAanpassingen[lijst][sectie] = { verborgen: [], extra: [] };
   const sectieAanp = lijstenAanpassingen[lijst][sectie];
